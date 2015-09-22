@@ -8,7 +8,7 @@ auto_login_url.login:
 auto_login_url.settings:
   path: '/admin/people/autologinurl'
   defaults:
-    _form: '\Drupal\auto_login_url\AutoLoginURLSettings'
+    _form: '\Drupal\auto_login_url\Form\ConfigForm'
     _title: 'Settings'
   requirements:
     _permission: 'administer auto login url'

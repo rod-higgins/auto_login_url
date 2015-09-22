@@ -4,12 +4,12 @@
  * Contains \Drupal\auto_login_url\Controller\AutoLoginUrlMainController.
  */
 
-namespace Drupal\auto_login_url;
+namespace Drupal\auto_login_url\Form;
 
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
 
-class AutoLoginURLSettings extends ConfigFormBase {
+class ConfigForm extends ConfigFormBase {
 
   /**
    * {@inheritdoc}
@@ -78,5 +78,14 @@ class AutoLoginURLSettings extends ConfigFormBase {
     $config->set('delete', $values['auto_login_url_delete_on_use'])->save();
 
     parent::submitForm($form, $form_state);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getEditableConfigNames() {
+    return [
+      'auto_login_url.settings',
+    ];
   }
 }
