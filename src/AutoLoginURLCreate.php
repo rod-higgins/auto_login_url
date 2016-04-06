@@ -20,7 +20,7 @@ class AutoLoginURLCreate {
    *   Absolute or relative link.
    *
    * @return string
-   *   Autologin URL.
+   *   Auto Login URL.
    */
   function create($uid, $destination, $absolute = FALSE) {
     $config = \Drupal::config('auto_login_url.settings');
@@ -31,14 +31,15 @@ class AutoLoginURLCreate {
     $hash_db = hash('sha256', $hash . $config->get('secret'));
 
     // Insert a new hash.
-    db_insert('auto_login_url')
+    $connection = \Drupal::database();
+    $connection->insert('auto_login_url')
       ->fields(array('uid', 'hash', 'destination', 'timestamp'))
       ->values(array(
-          'uid' => $uid,
-          'hash' => $hash_db,
-          'destination' => $destination,
-        	'timestamp' => time(),
-        ))
+        'uid' => $uid,
+        'hash' => $hash_db,
+        'destination' => $destination,
+        'timestamp' => time(),
+      ))
       ->execute();
 
     // Check if link is absolute.

@@ -19,9 +19,10 @@ class AutoLoginUrlMainController extends ControllerBase {
    */
   public function login($hash) {
     $config = $this->config('auto_login_url.settings');
+    $connection = \Drupal::database();
 
     // Get if the hash is in the db.
-    $result = db_select('auto_login_url', 'a')
+    $result = $connection->select('auto_login_url', 'a')
       ->fields('a', array('id', 'uid', 'destination'))
       ->condition('hash', hash('sha256', $hash . $config->get('secret')), '=')
       ->execute()
@@ -33,14 +34,16 @@ class AutoLoginUrlMainController extends ControllerBase {
       user_login_finalize($account);
 
       // Update the user table timestamp noting user has logged in.
-      db_update('users_field_data')
+      $connection->update('users_field_data')
         ->fields(array('login' => time()))
         ->condition('uid', $result['uid'])
         ->execute();
 
       // Delete auto login URL, if option checked.
       if ($config->get('delete')) {
-        db_delete('auto_login_url')->condition('id', array($result['id']))->execute();
+        $connection->delete('auto_login_url')
+          ->condition('id', array($result['id']))
+          ->execute();
       }
 
       // Get destination URL.
@@ -48,7 +51,7 @@ class AutoLoginUrlMainController extends ControllerBase {
       $destination =
         strpos($destination, 'http://') !== FALSE
         || strpos($destination, 'https://') !== FALSE ?
-        $destination : '/' . $destination;
+          $destination : '/' . $destination;
 
       // I am using a Symfony class directly, which I am not sure I should.
       return new RedirectResponse($destination);

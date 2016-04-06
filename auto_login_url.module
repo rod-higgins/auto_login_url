@@ -26,7 +26,8 @@ function auto_login_url_cron() {
   $config = \Drupal::config('auto_login_url.settings');
 
   // Delete over one month auto logins.
-  db_delete('auto_login_url')
+  $connection = \Drupal::database();
+  $connection->delete('auto_login_url')
     ->condition('timestamp', date('c', time() - $config->get('expiration')), '<=')
     ->execute();
 }
