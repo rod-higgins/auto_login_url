@@ -1,3 +1,4 @@
 secret: drupal
 expiration: 2592000
 delete: false
+token_length: 64

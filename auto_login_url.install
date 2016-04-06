@@ -60,3 +60,13 @@ function auto_login_url_schema() {
 
   return $schema;
 }
+
+/**
+ * [2016-04-06] Add token length variable.
+ */
+function auto_login_url_update_8001() {
+  $config_factory = \Drupal::configFactory();
+  $config = $config_factory->getEditable('auto_login_url.settings');
+  $config->set('token_length', 64);
+  $config->save(TRUE);
+}

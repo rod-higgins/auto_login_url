@@ -30,7 +30,7 @@ class ConfigForm extends ConfigFormBase {
       '#title' => t('Secret word'),
       '#required' => TRUE,
       '#default_value' => $config->get('secret'),
-      '#description' => t('Secret word to create hashes that are stored in DB.
+      '#description' => $this->t('Secret word to create hashes that are stored in DB.
         Every time this changes all previous URLs are invalidated.'),
     );
 
@@ -40,8 +40,7 @@ class ConfigForm extends ConfigFormBase {
       '#title' => t('Expiration'),
       '#required' => TRUE,
       '#default_value' => $config->get('expiration'),
-      '#description' => t('Expiration of URLs in seconds.'),
-      //'#element_validate' => array('element_validate_integer_positive'),
+      '#description' => $this->t('Expiration of URLs in seconds.'),
     );
 
     // Delete URLs on use.
@@ -50,6 +49,17 @@ class ConfigForm extends ConfigFormBase {
       '#title' => t('Delete on use'),
       '#default_value' => $config->get('delete'),
       '#description' => t('Auto delete URLs after use.'),
+    );
+
+    // Token length.
+    $form['auto_login_url_token_length'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Token length'),
+      '#required' => TRUE,
+      '#default_value' => $config->get('token_length') != FALSE ? $config->get('token_length') : 64,
+      '#description' => $this->t('Length of generated URL token.
+      WARNING: Please understand the security implications of a short auto-login-url string before you change this value.
+      It has to be between 6 and 64 digits.'),
     );
 
     return parent::buildForm($form, $form_state);
@@ -64,6 +74,10 @@ class ConfigForm extends ConfigFormBase {
     if ($form_state->getValue('auto_login_url_expiration') < 1) {
       $form_state->setErrorByName('auto_login_url_expiration', $this->t('Expiration must be positive integer.'));
     }
+
+    if ($form_state->getValue('auto_login_url_token_length') < 6 || $form_state->getValue('auto_login_url_token_length') > 64) {
+      $form_state->setErrorByName('auto_login_url_token_length', $this->t('Token length has to be between 6 and 64 digits.'));
+    }
   }
 
   /**
@@ -76,6 +90,8 @@ class ConfigForm extends ConfigFormBase {
     $config->set('secret', $values['auto_login_url_secret'])->save();
     $config->set('expiration', $values['auto_login_url_expiration'])->save();
     $config->set('delete', $values['auto_login_url_delete_on_use'])->save();
+    $config->set('token_length', $values['auto_login_url_token_length'])
+      ->save();
 
     parent::submitForm($form, $form_state);
   }

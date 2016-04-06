@@ -41,10 +41,29 @@ class AutoLoginURLCreate {
   function create($uid, $destination, $absolute = FALSE) {
     $config = \Drupal::config('auto_login_url.settings');
 
-    // Generate hash.
-    $hash = hash('sha256', $uid . '-' . time() . '-' . $destination);
-    // Generate hash to save to DB.
-    $hash_db = hash('sha256', $hash . $config->get('secret'));
+    // Repeat until the hash that is saved in DB is unique.
+    $hash_helper = 0;
+    do {
+      // Generate hash.
+      $hash = hash('sha256', $uid . '-' . time() . '-' . $destination . '-' . $hash_helper);
+
+      // Get substring.
+      $hash = substr($hash, 0, $config->get('token_length'));
+
+      // Generate hash to save to DB.
+      $hash_db = hash('sha256', $hash . $config->get('secret'));
+
+      // Check hash is unique.
+      $result = $this->connection->select('auto_login_url', 'alu')
+        ->fields('alu', array('hash'))
+        ->condition('alu.hash', $hash_db)
+        ->execute()
+        ->fetchAssoc();
+      
+      // Increment value in case there will be a next iteration.
+      $hash_helper++;
+
+    } while (isset($result['hash']));
 
     // Insert a new hash.
     $this->connection->insert('auto_login_url')
