@@ -9,14 +9,16 @@
  * Wrapper function for AutoLoginURLCreate::create().
  */
 function auto_login_url_create($uid, $destination, $absolute = FALSE) {
-  return \Drupal\auto_login_url\AutoLoginURLCreate::create($uid, $destination, $absolute);
+  $alu_service = \Drupal::service('auto_login_url.create');
+  return $alu_service->create($uid, $destination, $absolute);
 }
 
 /**
  * Wrapper function for AutoLoginURLCreate::convert_text().
  */
 function auto_login_url_convert_text($uid, $text) {
-  return \Drupal\auto_login_url\AutoLoginURLCreate::convert_text($uid, $text);
+  $alu_service = \Drupal::service('auto_login_url.create');
+  return $alu_service->convert_text($uid, $text);
 }
 
 /**

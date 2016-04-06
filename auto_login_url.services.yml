@@ -1,0 +1,4 @@
+services:
+  auto_login_url.create:
+    class: Drupal\auto_login_url\AutoLoginURLCreate
+    arguments: ['@database']

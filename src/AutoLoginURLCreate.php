@@ -7,7 +7,23 @@
 
 namespace Drupal\auto_login_url;
 
+use \Drupal\Core\Database\Connection;
+
 class AutoLoginURLCreate {
+
+  /**
+   * Drupal\Core\Database\Connection definition.
+   *
+   * @var \Drupal\Core\Database\Connection
+   */
+  protected $connection;
+
+  /**
+   * Constructor.
+   */
+  public function __construct(Connection $connection) {
+    $this->connection = $connection;
+  }
 
   /**
    * Create an auto login hash on demand.
@@ -31,8 +47,7 @@ class AutoLoginURLCreate {
     $hash_db = hash('sha256', $hash . $config->get('secret'));
 
     // Insert a new hash.
-    $connection = \Drupal::database();
-    $connection->insert('auto_login_url')
+    $this->connection->insert('auto_login_url')
       ->fields(array('uid', 'hash', 'destination', 'timestamp'))
       ->values(array(
         'uid' => $uid,

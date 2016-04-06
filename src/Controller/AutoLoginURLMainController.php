@@ -8,8 +8,7 @@
 namespace Drupal\auto_login_url\Controller;
 
 use Drupal\Core\Controller\ControllerBase;
-use Drupal\auto_login_url\AutoLoginURLCreate;
-use Drupal\Core\Entity\EntityManagerInterface;
+use Drupal\user\Entity\User;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 
 class AutoLoginUrlMainController extends ControllerBase {
@@ -29,8 +28,7 @@ class AutoLoginUrlMainController extends ControllerBase {
       ->fetchAssoc();
 
     if (count($result) > 0 && isset($result['uid'])) {
-      $userStorage = $this->entityManager()->getStorage('user');
-      $account = $userStorage->load($result['uid']);
+      $account = User::load($result['uid']);
       user_login_finalize($account);
 
       // Update the user table timestamp noting user has logged in.
