@@ -10,6 +10,7 @@ namespace Drupal\auto_login_url\Controller;
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\user\Entity\User;
 use Symfony\Component\HttpFoundation\RedirectResponse;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 class AutoLoginUrlMainController extends ControllerBase {
 
@@ -19,6 +20,15 @@ class AutoLoginUrlMainController extends ControllerBase {
   public function login($hash) {
     $config = $this->config('auto_login_url.settings');
     $connection = \Drupal::database();
+
+    // Check for flood events.
+    $flood_config = $this->config('user.flood');
+    $flood = \Drupal::flood();
+    if (!$flood->isAllowed('user.failed_login_ip', $flood_config->get('ip_limit'), $flood_config->get('ip_window'))) {
+      drupal_set_message($this->t('Sorry, too many failed login attempts from your IP address. This IP address is temporarily blocked. Try again later.'), 'error');
+
+      throw new AccessDeniedHttpException();
+    }
 
     // Get if the hash is in the db.
     $result = $connection->select('auto_login_url', 'a')
@@ -55,7 +65,18 @@ class AutoLoginUrlMainController extends ControllerBase {
       return new RedirectResponse($destination);
     }
     else {
-      return $this->redirect('<front>');
+      // Register flood event.
+      $flood->register('user.failed_login_ip', $flood_config->get('ip_window'));
+
+      // Log error.
+      \Drupal::logger('auto_login_url')
+        ->error('Failed Auto Login URL from ip: @ip and hash: @hash',
+          array(
+            '@ip' => \Drupal::request()->getClientIp(),
+            '@hash' => $hash
+          ));
+
+      throw new AccessDeniedHttpException();
     }
   }
 }

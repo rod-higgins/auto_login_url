@@ -59,7 +59,7 @@ class AutoLoginURLCreate {
         ->condition('alu.hash', $hash_db)
         ->execute()
         ->fetchAssoc();
-      
+
       // Increment value in case there will be a next iteration.
       $hash_helper++;
 
