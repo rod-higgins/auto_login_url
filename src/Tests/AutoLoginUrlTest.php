@@ -141,13 +141,16 @@ class AutoLoginUrlTest extends WebTestBase {
     $this->assertText(t('Sorry, too many failed login attempts from your IP address. This IP address is temporarily blocked. Try again later.'),
       t('Cannot login message visible.'));
 
-    // @todo: This does not work yet. Fix it.
-//    // Clear flood table.
-//    \Drupal::flood()->clear('user.failed_login_ip');
-//
-//    // Try to login again.
-//    $this->drupalGet($url);
-//    $this->assertResponse(200, t('User logged in successfully.'));
-//    $this->assertText($user->get('name')->value, t('User name is visible, hence user is logged in.'));
+    // Clear flood table. I am using sql instead of the flood interface
+    // (\Drupal::flood()->clear('user.failed_login_ip');) because it does not
+    // seem to work. But it is not a problem at this point since we know the
+    // flood records will be on DB anyway.
+    $connection = \Drupal::database();
+    $connection->truncate('flood')->execute();
+
+    // Try to login again.
+    $this->drupalGet($url);
+    $this->assertResponse(200, t('User logged in successfully.'));
+    $this->assertText($user->get('name')->value, t('User name is visible, hence user is logged in.'));
   }
 }
