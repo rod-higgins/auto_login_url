@@ -87,7 +87,7 @@ class AutoLoginURLCreate {
   }
 
   /**
-   * Convert a whole text(E.g. mail with autologin links).
+   * Convert a whole text (E.g. mail with autologin links).
    *
    * @param int $uid
    *   User id.
@@ -97,7 +97,7 @@ class AutoLoginURLCreate {
    * @return string
    *   The text with changed links.
    */
-  function convert_text($uid, $text) {
+  function convertText($uid, $text) {
 
     global $base_root;
     // A pattern to convert links, but not images.

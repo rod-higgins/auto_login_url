@@ -15,7 +15,10 @@ use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 class AutoLoginUrlMainController extends ControllerBase {
 
   /**
-   * Login method.
+   * Auto login method.
+   *
+   * @param string $hash
+   *   The hash string on the URL.
    */
   public function login($hash) {
     $config = $this->config('auto_login_url.settings');

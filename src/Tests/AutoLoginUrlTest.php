@@ -34,7 +34,7 @@ class AutoLoginUrlTest extends WebTestBase {
   protected $profile = 'minimal';
 
   /**
-   * @inheritdoc
+   * {@inheritdoc}
    */
   protected function setUp() {
     parent::setUp();

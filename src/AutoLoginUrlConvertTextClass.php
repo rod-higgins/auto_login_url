@@ -37,7 +37,8 @@ class AutoLoginUrlConvertTextClass {
       return $matches[0];
     }
     else {
-      return AutoLoginURLCreate::create($this->uid, $matches[0], TRUE);
+      return \Drupal::service('auto_login_url.create')
+        ->create($this->uid, $matches[0], TRUE);
     }
   }
 }
