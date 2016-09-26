@@ -1,8 +1,4 @@
 <?php
-/**
- * @file
- * Contains \Drupal\auto_login_url\Controller\AutoLoginUrlMainController.
- */
 
 namespace Drupal\auto_login_url\Form;
 
@@ -27,7 +23,7 @@ class ConfigForm extends ConfigFormBase {
     // Secret word.
     $form['auto_login_url_secret'] = array(
       '#type' => 'textfield',
-      '#title' => t('Secret word'),
+      '#title' => $this->t('Secret word'),
       '#required' => TRUE,
       '#default_value' => $config->get('secret'),
       '#description' => $this->t('Secret word to create hashes that are stored in DB.
@@ -37,7 +33,7 @@ class ConfigForm extends ConfigFormBase {
     // Expiration.
     $form['auto_login_url_expiration'] = array(
       '#type' => 'textfield',
-      '#title' => t('Expiration'),
+      '#title' => $this->t('Expiration'),
       '#required' => TRUE,
       '#default_value' => $config->get('expiration'),
       '#description' => $this->t('Expiration of URLs in seconds.'),
@@ -46,15 +42,15 @@ class ConfigForm extends ConfigFormBase {
     // Delete URLs on use.
     $form['auto_login_url_delete_on_use'] = array(
       '#type' => 'checkbox',
-      '#title' => t('Delete on use'),
+      '#title' => $this->t('Delete on use'),
       '#default_value' => $config->get('delete'),
-      '#description' => t('Auto delete URLs after use.'),
+      '#description' => $this->t('Auto delete URLs after use.'),
     );
 
     // Token length.
     $form['auto_login_url_token_length'] = array(
       '#type' => 'textfield',
-      '#title' => t('Token length'),
+      '#title' => $this->t('Token length'),
       '#required' => TRUE,
       '#default_value' => $config->get('token_length') != FALSE ? $config->get('token_length') : 64,
       '#description' => $this->t('Length of generated URL token.
