@@ -68,11 +68,11 @@ function auto_login_url_tokens($type, $tokens, array $data = array(), array $opt
     foreach ($tokens as $name => $original) {
       switch ($name) {
         case 'auto-login-url-token':
-          $replacements[$original] = auto_login_url_create($user->uid, '<front>', TRUE);
+          $replacements[$original] = auto_login_url_create($user->id(), '<front>', TRUE);
           break;
 
         case 'auto-login-url-account-edit-token':
-          $replacements[$original] = auto_login_url_create($user->uid, 'user/' . $user->uid . '/edit', TRUE);
+          $replacements[$original] = auto_login_url_create($user->id(), 'user/' . $user->id() . '/edit', TRUE);
           break;
 
       }
