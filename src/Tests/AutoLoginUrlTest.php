@@ -1,10 +1,5 @@
 <?php
 
-/**
- * @file
- * Test Auto Login URL module works as expected.
- */
-
 namespace Drupal\auto_login_url\Tests;
 
 use Drupal\simpletest\WebTestBase;

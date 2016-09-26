@@ -1,10 +1,5 @@
 <?php
 
-/**
- * @file
- * Contains \Drupal\auto_login_url\AutoLoginUrlConvertTextClass.
- */
-
 namespace Drupal\auto_login_url;
 
 class AutoLoginUrlConvertTextClass {

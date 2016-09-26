@@ -1,10 +1,5 @@
 <?php
 
-/**
- * @file
- * Contains \Drupal\auto_login_url\AutoLoginURLCreate.
- */
-
 namespace Drupal\auto_login_url;
 
 use \Drupal\Core\Database\Connection;

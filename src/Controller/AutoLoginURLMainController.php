@@ -1,10 +1,5 @@
 <?php
 
-/**
- * @file
- * Contains \Drupal\auto_login_url\Controller\AutoLoginUrlMainController.
- */
-
 namespace Drupal\auto_login_url\Controller;
 
 use Drupal\Core\Controller\ControllerBase;
