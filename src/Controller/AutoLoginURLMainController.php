@@ -16,6 +16,9 @@ class AutoLoginUrlMainController extends ControllerBase {
    */
   public function login($uid, $hash) {
 
+    // Disable page cache.
+    \Drupal::service('page_cache_kill_switch')->trigger();
+
     // Check for flood events.
     if (\Drupal::service('auto_login_url.general')->checkFlood()) {
       drupal_set_message($this->t('Sorry, too many failed login attempts from your IP address. This IP address is temporarily blocked. Try again later.'), 'error');
