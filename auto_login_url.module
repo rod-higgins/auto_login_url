@@ -6,7 +6,7 @@
  */
 
 /**
- * Wrapper function for AutoLoginURLCreate::create().
+ * Wrapper function for AutoLoginUrlCreate::create().
  */
 function auto_login_url_create($uid, $destination, $absolute = FALSE) {
   $alu_service = \Drupal::service('auto_login_url.create');
@@ -14,7 +14,7 @@ function auto_login_url_create($uid, $destination, $absolute = FALSE) {
 }
 
 /**
- * Wrapper function for AutoLoginURLCreate::convertText().
+ * Wrapper function for AutoLoginUrlCreate::convertText().
  */
 function auto_login_url_convert_text($uid, $text) {
   $alu_service = \Drupal::service('auto_login_url.create');

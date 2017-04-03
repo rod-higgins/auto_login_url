@@ -87,7 +87,7 @@ class AutoLoginUrlTest extends WebTestBase {
     // Change settings.
     $config = $this->config('auto_login_url.settings');
     $config->set('secret', 'new secret')->save();
-    $config->set('token_length', 6)->save();
+    $config->set('token_length', 8)->save();
 
     // Create user.
     $user = $this->drupalCreateUser();
@@ -119,7 +119,7 @@ class AutoLoginUrlTest extends WebTestBase {
 
     // Access 10 false URLs. Essentially triggering flood.
     for ($i = 1; $i < 6; $i++) {
-      $this->drupalGet('autologinurl/some-token' . $i);
+      $this->drupalGet('autologinurl/' . $i . '/some-token' . $i);
       $this->assertResponse(403, t('Got access denied page.'));
     }
 

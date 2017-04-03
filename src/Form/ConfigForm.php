@@ -25,7 +25,7 @@ class ConfigForm extends ConfigFormBase {
       '#type' => 'textfield',
       '#title' => $this->t('Secret word'),
       '#required' => TRUE,
-      '#default_value' => $config->get('secret'),
+      '#default_value' => \Drupal::service('auto_login_url.general')->getSecret(),
       '#description' => $this->t('Secret word to create hashes that are stored in DB.
         Every time this changes all previous URLs are invalidated.'),
     );
@@ -55,7 +55,7 @@ class ConfigForm extends ConfigFormBase {
       '#default_value' => $config->get('token_length') != FALSE ? $config->get('token_length') : 64,
       '#description' => $this->t('Length of generated URL token.
       WARNING: Please understand the security implications of a short auto-login-url string before you change this value.
-      It has to be between 6 and 64 digits.'),
+      It has to be between 8 and 64 digits.'),
     );
 
     return parent::buildForm($form, $form_state);
@@ -71,7 +71,7 @@ class ConfigForm extends ConfigFormBase {
       $form_state->setErrorByName('auto_login_url_expiration', $this->t('Expiration must be positive integer.'));
     }
 
-    if ($form_state->getValue('auto_login_url_token_length') < 6 || $form_state->getValue('auto_login_url_token_length') > 64) {
+    if ($form_state->getValue('auto_login_url_token_length') < 8 || $form_state->getValue('auto_login_url_token_length') > 64) {
       $form_state->setErrorByName('auto_login_url_token_length', $this->t('Token length has to be between 6 and 64 digits.'));
     }
   }

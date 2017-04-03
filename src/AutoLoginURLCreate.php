@@ -3,8 +3,10 @@
 namespace Drupal\auto_login_url;
 
 use \Drupal\Core\Database\Connection;
+use Drupal\Component\Utility\Crypt;
+use Drupal\Core\Site\Settings;
 
-class AutoLoginURLCreate {
+class AutoLoginUrlCreate {
 
   /**
    * Drupal\Core\Database\Connection definition.
@@ -36,17 +38,29 @@ class AutoLoginURLCreate {
   function create($uid, $destination, $absolute = FALSE) {
     $config = \Drupal::config('auto_login_url.settings');
 
+    // Get ALU secret.
+    $auto_login_url_secret = \Drupal::service('auto_login_url.general')->getSecret();
+
+    // Get user password.
+    $password = \Drupal::service('auto_login_url.general')->getUserHash($uid);
+
+    // Create key.
+    $key = Settings::getHashSalt() . $auto_login_url_secret . $password;
+
     // Repeat until the hash that is saved in DB is unique.
     $hash_helper = 0;
+
     do {
+      $data = $uid . microtime(TRUE). $destination . $hash_helper;
+
       // Generate hash.
-      $hash = hash('sha256', $uid . '-' . time() . '-' . $destination . '-' . $hash_helper);
+      $hash = Crypt::hmacBase64($data, $key);
 
       // Get substring.
       $hash = substr($hash, 0, $config->get('token_length'));
 
       // Generate hash to save to DB.
-      $hash_db = hash('sha256', $hash . $config->get('secret'));
+      $hash_db = Crypt::hmacBase64($hash, $key);
 
       // Check hash is unique.
       $result = $this->connection->select('auto_login_url', 'alu')
@@ -78,7 +92,7 @@ class AutoLoginURLCreate {
       $absolute_path = $base_url . '/';
     }
 
-    return $absolute_path . 'autologinurl/' . $hash;
+    return $absolute_path . 'autologinurl/' . $uid . '/' . $hash;
   }
 
   /**
