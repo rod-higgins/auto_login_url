@@ -70,3 +70,13 @@ function auto_login_url_update_8001() {
   $config->set('token_length', 64);
   $config->save(TRUE);
 }
+
+/**
+ * [2017-04-03] Reset secret.
+ */
+function auto_login_url_update_8002() {
+  $config_factory = \Drupal::configFactory();
+  $config = $config_factory->getEditable('auto_login_url.settings');
+  $config->set('secret', '');
+  $config->save(TRUE);
+}
