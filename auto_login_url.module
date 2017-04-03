@@ -5,6 +5,22 @@
  * Main file for auto_login_url module.
  */
 
+use Drupal\Core\Routing\RouteMatchInterface;
+
+/**
+ * Implements hook_help().
+ */
+function auto_login_url_help($route_name, RouteMatchInterface $route_match) {
+  switch ($route_name) {
+    case 'help.page.auto_login_url':
+      $output = '';
+      $output .= '<h3>' . t('About') . '</h3>';
+      $output .= '<p>' . t('This is a module that creates auto login URLs on demand or with tokens.') . ' </p>';
+
+      return $output;
+  }
+}
+
 /**
  * Wrapper function for AutoLoginUrlCreate::create().
  */
