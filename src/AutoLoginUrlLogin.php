@@ -48,7 +48,7 @@ class AutoLoginUrlLogin {
 
     // Get if the hash is in the db.
     $result = $connection->select('auto_login_url', 'a')
-      ->fields('a', array('id', 'uid', 'destination'))
+      ->fields('a', ['id', 'uid', 'destination'])
       ->condition('hash', Crypt::hmacBase64($hash, $key), '=')
       ->execute()
       ->fetchAssoc();
@@ -59,14 +59,14 @@ class AutoLoginUrlLogin {
 
       // Update the user table timestamp noting user has logged in.
       $connection->update('users_field_data')
-        ->fields(array('login' => time()))
+        ->fields(['login' => time()])
         ->condition('uid', $result['uid'])
         ->execute();
 
       // Delete auto login URL, if option checked.
       if ($config->get('delete')) {
         $connection->delete('auto_login_url')
-          ->condition('id', array($result['id']))
+          ->condition('id', [$result['id']])
           ->execute();
       }
 

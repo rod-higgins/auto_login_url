@@ -17,9 +17,9 @@ class AutoLoginUrlTest extends WebTestBase {
    *
    * @var array
    */
-  static public $modules = array(
+  static public $modules = [
     'auto_login_url',
-  );
+  ];
 
   /**
    * The installation profile to use with this test.
@@ -40,7 +40,7 @@ class AutoLoginUrlTest extends WebTestBase {
     $role = \Drupal\user\Entity\Role::load('anonymous');
     $role->grantPermission('use auto login url');
     $role->save();
-    $this->additionalCurlOptions = array(CURLOPT_FOLLOWLOCATION => TRUE);
+    $this->additionalCurlOptions = [CURLOPT_FOLLOWLOCATION => TRUE];
   }
 
   /**

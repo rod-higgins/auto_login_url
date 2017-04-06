@@ -21,34 +21,33 @@ class ConfigForm extends ConfigFormBase {
     $config = $this->config('auto_login_url.settings');
 
     // Secret word.
-    $form['auto_login_url_secret'] = array(
+    $form['auto_login_url_secret'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Secret word'),
       '#required' => TRUE,
       '#default_value' => \Drupal::service('auto_login_url.general')->getSecret(),
       '#description' => $this->t('Secret word to create hashes that are stored in DB.
         Every time this changes all previous URLs are invalidated.'),
-    );
+    ];
 
     // Expiration.
-    $form['auto_login_url_expiration'] = array(
-      '#type' => 'textfield',
+    $form['auto_login_url_expiration'] = [
       '#title' => $this->t('Expiration'),
       '#required' => TRUE,
       '#default_value' => $config->get('expiration'),
       '#description' => $this->t('Expiration of URLs in seconds.'),
-    );
+    ];
 
     // Delete URLs on use.
-    $form['auto_login_url_delete_on_use'] = array(
+    $form['auto_login_url_delete_on_use'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Delete on use'),
       '#default_value' => $config->get('delete'),
       '#description' => $this->t('Auto delete URLs after use.'),
-    );
+    ];
 
     // Token length.
-    $form['auto_login_url_token_length'] = array(
+    $form['auto_login_url_token_length'] = [
       '#type' => 'textfield',
       '#title' => $this->t('Token length'),
       '#required' => TRUE,
@@ -56,7 +55,7 @@ class ConfigForm extends ConfigFormBase {
       '#description' => $this->t('Length of generated URL token.
       WARNING: Please understand the security implications of a short auto-login-url string before you change this value.
       It has to be between 8 and 64 digits.'),
-    );
+    ];
 
     return parent::buildForm($form, $form_state);
   }

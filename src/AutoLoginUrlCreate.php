@@ -64,7 +64,7 @@ class AutoLoginUrlCreate {
 
       // Check hash is unique.
       $result = $this->connection->select('auto_login_url', 'alu')
-        ->fields('alu', array('hash'))
+        ->fields('alu', ['hash'])
         ->condition('alu.hash', $hash_db)
         ->execute()
         ->fetchAssoc();
@@ -76,13 +76,13 @@ class AutoLoginUrlCreate {
 
     // Insert a new hash.
     $this->connection->insert('auto_login_url')
-      ->fields(array('uid', 'hash', 'destination', 'timestamp'))
-      ->values(array(
+      ->fields(['uid', 'hash', 'destination', 'timestamp'])
+      ->values([
         'uid' => $uid,
         'hash' => $hash_db,
         'destination' => $destination,
         'timestamp' => time(),
-      ))
+      ])
       ->execute();
 
     // Check if link is absolute.
@@ -119,7 +119,7 @@ class AutoLoginUrlCreate {
     // Replace text with regex/callback.
     $text = preg_replace_callback(
       $pattern,
-      array(&$current_conversion, 'replace'),
+      [&$current_conversion, 'replace'],
       $text);
 
     return $text;

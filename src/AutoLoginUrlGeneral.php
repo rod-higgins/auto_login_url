@@ -56,10 +56,10 @@ class AutoLoginUrlGeneral {
     // Log error.
     \Drupal::logger('auto_login_url')
       ->error('Failed Auto Login URL from ip: @ip and hash: @hash',
-        array(
+        [
           '@ip' => \Drupal::request()->getClientIp(),
           '@hash' => $hash
-        ));
+        ]);
   }
 
   /**

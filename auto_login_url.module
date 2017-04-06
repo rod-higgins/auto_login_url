@@ -56,19 +56,19 @@ function auto_login_url_cron() {
 function auto_login_url_token_info() {
 
   // Add new tokens.
-  $info = array();
+  $info = [];
 
   // Home token.
-  $info['tokens']['user']['auto-login-url-token'] = array(
+  $info['tokens']['user']['auto-login-url-token'] = [
     'name' => t('Auto Login URL'),
     'description' => t('This an auto login token for the user.'),
-  );
+  ];
 
   // Link that goes to user edit page.
-  $info['tokens']['user']['auto-login-url-account-edit-token'] = array(
+  $info['tokens']['user']['auto-login-url-account-edit-token'] = [
     'name' => t('Auto Login URL account edit'),
     'description' => t('This an auto login for the user account page.'),
-  );
+  ];
 
   return $info;
 }
@@ -76,8 +76,8 @@ function auto_login_url_token_info() {
 /**
  * Implements hook_tokens().
  */
-function auto_login_url_tokens($type, $tokens, array $data = array(), array $options = array()) {
-  $replacements = array();
+function auto_login_url_tokens($type, $tokens, array $data = [], array $options = []) {
+  $replacements = [];
   if ($type == 'user') {
     $user = $data['user'];
 
