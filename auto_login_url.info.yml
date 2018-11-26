@@ -4,5 +4,5 @@ description: 'Auto login, creates and uses tokens for auto login.'
 core: 8.x
 configure: auto_login_url.settings
 dependencies:
-  - system
-  - user
+  - drupal:system
+  - drupal:user
