@@ -2,7 +2,8 @@
 
 namespace Drupal\auto_login_url\Tests;
 
-use Drupal\simpletest\WebTestBase;
+use Drupal\Tests\BrowserTestBase;
+use Drupal\user\Entity\Role;
 
 /**
  * AutoLoginUrlTestCase Class.
@@ -10,16 +11,14 @@ use Drupal\simpletest\WebTestBase;
  * @ingroup Auto Login URL test
  * @group Auto Login URL
  */
-class AutoLoginUrlTest extends WebTestBase {
+class AutoLoginUrlTest extends BrowserTestBase {
 
   /**
-   * Our module dependencies.
+   * Modules to enable.
    *
    * @var array
    */
-  static public $modules = [
-    'auto_login_url',
-  ];
+  protected static $modules = ['auto_login_url'];
 
   /**
    * The installation profile to use with this test.
@@ -31,16 +30,17 @@ class AutoLoginUrlTest extends WebTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp() {
+  protected function setUp(): void {
     parent::setUp();
 
-    $role = \Drupal\user\Entity\Role::load('authenticated');
+    $role = Role::load('authenticated');
     $role->grantPermission('use auto login url');
     $role->save();
-    $role = \Drupal\user\Entity\Role::load('anonymous');
+    $role = Role::load('anonymous');
     $role->grantPermission('use auto login url');
     $role->save();
     $this->additionalCurlOptions = [CURLOPT_FOLLOWLOCATION => TRUE];
+
   }
 
   /**
@@ -49,12 +49,12 @@ class AutoLoginUrlTest extends WebTestBase {
   public function testAluTokenGenerationCheck() {
 
     // Create user.
-    $user = $this->drupalCreateUser();
+    $user = $this->createUser([
+      'use auto login url',
+    ]);
 
     // Create an auto login url for this user.
     $url = auto_login_url_create($user->get('uid')->value, 'user/' . $user->get('uid')->value);
-
-    debug('Generated URL is: ' . $url);
 
     // Access url.
     $this->drupalGet($url);
@@ -64,12 +64,12 @@ class AutoLoginUrlTest extends WebTestBase {
     $this->assertText($user->get('name')->value, t('User name is visible, hence user is logged in.'));
 
     // Create another user and login again.
-    $user2 = $this->drupalCreateUser();
+    $user2 = $this->createUser([
+      'use auto login url',
+    ]);
 
     // Create an auto login url for this user.
     $url = auto_login_url_create($user2->get('uid')->value, 'user/' . $user2->get('uid')->value);
-
-    debug('Generated URL is: ' . $url);
 
     // Access url.
     $this->drupalGet($url);
@@ -90,12 +90,12 @@ class AutoLoginUrlTest extends WebTestBase {
     $config->set('token_length', 8)->save();
 
     // Create user.
-    $user = $this->drupalCreateUser();
+    $user = $this->createUser([
+      'use auto login url',
+    ]);
 
     // Create an auto login url for this user.
     $url = auto_login_url_create($user->get('uid')->value, 'user/' . $user->get('uid')->value);
-
-    debug('Generated URL is: ' . $url);
 
     // Access url.
     $this->drupalGet($url);
@@ -115,7 +115,9 @@ class AutoLoginUrlTest extends WebTestBase {
     $flood_config->set('ip_limit', 5)->save();
 
     // Create user.
-    $user = $this->drupalCreateUser();
+    $user = $this->createUser([
+      'use auto login url',
+    ]);
 
     // Access 10 false URLs. Essentially triggering flood.
     for ($i = 1; $i < 6; $i++) {
@@ -126,15 +128,13 @@ class AutoLoginUrlTest extends WebTestBase {
     // Generate actual auto login url for this user.
     $url = auto_login_url_create($user->get('uid')->value, 'user/' . $user->get('uid')->value);
 
-    debug('Generated URL is: ' . $url);
-
     // Access url.
     $this->drupalGet($url);
 
     // Make assertions.
     $this->assertResponse(403, t('Got access denied page.'));
     $this->assertText(t('Sorry, too many failed login attempts from your IP address. This IP address is temporarily blocked. Try again later.'),
-      t('Cannot login message visible.'));
+          t('Cannot login message visible.'));
 
     // Clear flood table. I am using sql instead of the flood interface
     // (\Drupal::flood()->clear('user.failed_login_ip');) because it does not
@@ -148,4 +148,5 @@ class AutoLoginUrlTest extends WebTestBase {
     $this->assertResponse(200, t('User logged in successfully.'));
     $this->assertText($user->get('name')->value, t('User name is visible, hence user is logged in.'));
   }
+
 }

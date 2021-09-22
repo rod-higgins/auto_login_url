@@ -6,7 +6,6 @@ use Drupal\Component\Utility\Crypt;
 use Drupal\Core\Site\Settings;
 use Drupal\user\Entity\User;
 
-
 /**
  * Class AutoLoginUrlLogin.
  *
@@ -24,7 +23,7 @@ class AutoLoginUrlLogin {
   /**
    * Get destination URL for autologin hash.
    *
-   * @param integer $uid
+   * @param int $uid
    *   User id.
    * @param string $hash
    *   Hash string.
@@ -32,7 +31,7 @@ class AutoLoginUrlLogin {
    * @return string|bool
    *   Destination or FALSE
    */
-  function login($uid, $hash) {
+  public function login($uid, $hash) {
 
     $config = \Drupal::config('auto_login_url.settings');
     $connection = \Drupal::database();
@@ -53,7 +52,7 @@ class AutoLoginUrlLogin {
       ->execute()
       ->fetchAssoc();
 
-    if (count($result) > 0 && isset($result['uid'])) {
+    if (!empty($result) && isset($result['uid'])) {
       $account = User::load($result['uid']);
       user_login_finalize($account);
 

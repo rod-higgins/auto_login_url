@@ -5,6 +5,11 @@ namespace Drupal\auto_login_url\Form;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
 
+/**
+ * Class ConfigForm.
+ *
+ * @package Drupal\auto_login_url\Form
+ */
 class ConfigForm extends ConfigFormBase {
 
   /**
@@ -32,6 +37,7 @@ class ConfigForm extends ConfigFormBase {
 
     // Expiration.
     $form['auto_login_url_expiration'] = [
+      '#type' => 'textfield',
       '#title' => $this->t('Expiration'),
       '#required' => TRUE,
       '#default_value' => $config->get('expiration'),
@@ -99,4 +105,5 @@ class ConfigForm extends ConfigFormBase {
       'auto_login_url.settings',
     ];
   }
+
 }

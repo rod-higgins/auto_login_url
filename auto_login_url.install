@@ -62,7 +62,7 @@ function auto_login_url_schema() {
 }
 
 /**
- * [2016-04-06] Add token length variable.
+ * Add token length variable [2016-04-06].
  */
 function auto_login_url_update_8001() {
   $config_factory = \Drupal::configFactory();
@@ -72,7 +72,7 @@ function auto_login_url_update_8001() {
 }
 
 /**
- * [2017-04-03] Reset secret.
+ * Reset secret [2017-04-03].
  */
 function auto_login_url_update_8002() {
   $config_factory = \Drupal::configFactory();

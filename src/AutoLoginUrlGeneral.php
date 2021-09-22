@@ -3,8 +3,6 @@
 namespace Drupal\auto_login_url;
 
 use Drupal\Component\Utility\Random;
-use Drupal\Core\Config\ConfigFactory;
-
 
 /**
  * Class AutoLoginUrlGeneral.
@@ -26,7 +24,7 @@ class AutoLoginUrlGeneral {
    * @return bool
    *   TRUE if it is blocked.
    */
-  function checkFlood() {
+  public function checkFlood() {
     // Maybe use DI in the future.
     $flood_config = \Drupal::config('user.flood');
     $flood = \Drupal::flood();
@@ -45,7 +43,7 @@ class AutoLoginUrlGeneral {
    * @param string $hash
    *   Code that passes through URL.
    */
-  function registerFlood($hash) {
+  public function registerFlood($hash) {
 
     $flood_config = \Drupal::config('user.flood');
     $flood = \Drupal::flood();
@@ -58,14 +56,14 @@ class AutoLoginUrlGeneral {
       ->error('Failed Auto Login URL from ip: @ip and hash: @hash',
         [
           '@ip' => \Drupal::request()->getClientIp(),
-          '@hash' => $hash
+          '@hash' => $hash,
         ]);
   }
 
   /**
    * Get secret key for ALU or create now.
    */
-  function getSecret() {
+  public function getSecret() {
 
     $config = \Drupal::config('auto_login_url.settings');
 
@@ -87,13 +85,13 @@ class AutoLoginUrlGeneral {
   /**
    * Get user password hash.
    *
-   * @param integer $uid
+   * @param int $uid
    *   User id.
    *
    * @return string
    *   Hashed password.
    */
-  function getUserHash($uid) {
+  public function getUserHash($uid) {
     $query = \Drupal::database()->select('users_field_data', 'u');
     $query->addField('u', 'pass');
     $query->condition('u.uid', $uid);

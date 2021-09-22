@@ -6,11 +6,18 @@ use Drupal\Core\Controller\ControllerBase;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
+/**
+ * Class AutoLoginUrlMainController.
+ *
+ * @package Drupal\auto_login_url\Controller
+ */
 class AutoLoginUrlMainController extends ControllerBase {
 
   /**
    * Auto login method.
    *
+   * @param int $uid
+   *   The ID of the user.
    * @param string $hash
    *   The hash string on the URL.
    */
@@ -21,7 +28,7 @@ class AutoLoginUrlMainController extends ControllerBase {
 
     // Check for flood events.
     if (\Drupal::service('auto_login_url.general')->checkFlood()) {
-      drupal_set_message($this->t('Sorry, too many failed login attempts from your IP address. This IP address is temporarily blocked. Try again later.'), 'error');
+      $this->messenger()->addError($this->t('Sorry, too many failed login attempts from your IP address. This IP address is temporarily blocked. Try again later.'));
 
       throw new AccessDeniedHttpException();
     }
@@ -38,4 +45,5 @@ class AutoLoginUrlMainController extends ControllerBase {
       throw new AccessDeniedHttpException();
     }
   }
+
 }

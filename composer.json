@@ -1,0 +1,34 @@
+{
+  "name": "drupal/auto_login_url",
+  "type": "drupal-module",
+  "description": "Auto login, creates and uses tokens for auto login.",
+  "keywords": [
+    "Drupal"
+  ],
+  "license": "GPL-2.0-or-later",
+  "homepage": "https://www.drupal.org/project/auto_login_url",
+  "support": {
+    "issues": "https://www.drupal.org/project/issues/auto_login_url",
+    "source": "https://git.drupalcode.org/project/auto_login_url"
+  },
+  "repositories": {
+    "packages.drupal": {
+      "type": "composer",
+      "url": "https://packages.drupal.org/9"
+    }
+  },
+  "require": {
+    "drupal/core": "^9",
+    "drush/drush": "^10.0"
+  },
+  "minimum-stability": "dev",
+  "suggest": {},
+  "extra": {
+    "drush": {
+      "services": {
+        "drush.services.yml": "^9"
+      }
+    }
+  }
+
+}

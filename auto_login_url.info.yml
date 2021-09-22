@@ -1,7 +1,7 @@
 name: Auto Login URL
 type: module
-description: 'Auto login, creates and uses tokens for auto login.'
-core: 8.x
+description: Auto login, creates and uses tokens for auto login.
+core_version_requirement: ^8.8 || ^9
 configure: auto_login_url.settings
 dependencies:
   - drupal:system

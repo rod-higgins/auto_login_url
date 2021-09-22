@@ -2,10 +2,15 @@
 
 namespace Drupal\auto_login_url;
 
-use \Drupal\Core\Database\Connection;
+use Drupal\Core\Database\Connection;
 use Drupal\Component\Utility\Crypt;
 use Drupal\Core\Site\Settings;
 
+/**
+ * Class AutoLoginUrlCreate.
+ *
+ * @package Drupal\auto_login_url
+ */
 class AutoLoginUrlCreate {
 
   /**
@@ -35,7 +40,7 @@ class AutoLoginUrlCreate {
    * @return string
    *   Auto Login URL.
    */
-  function create($uid, $destination, $absolute = FALSE) {
+  public function create($uid, $destination, $absolute = FALSE) {
     $config = \Drupal::config('auto_login_url.settings');
 
     // Get ALU secret.
@@ -51,7 +56,7 @@ class AutoLoginUrlCreate {
     $hash_helper = 0;
 
     do {
-      $data = $uid . microtime(TRUE). $destination . $hash_helper;
+      $data = $uid . microtime(TRUE) . $destination . $hash_helper;
 
       // Generate hash.
       $hash = Crypt::hmacBase64($data, $key);
@@ -106,7 +111,7 @@ class AutoLoginUrlCreate {
    * @return string
    *   The text with changed links.
    */
-  function convertText($uid, $text) {
+  public function convertText($uid, $text) {
 
     global $base_root;
     // A pattern to convert links, but not images.
@@ -124,4 +129,5 @@ class AutoLoginUrlCreate {
 
     return $text;
   }
+
 }

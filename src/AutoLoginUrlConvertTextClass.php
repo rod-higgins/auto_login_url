@@ -2,6 +2,11 @@
 
 namespace Drupal\auto_login_url;
 
+/**
+ * Class AutoLoginUrlConvertTextClass.
+ *
+ * @package Drupal\auto_login_url
+ */
 class AutoLoginUrlConvertTextClass {
 
   /**
@@ -36,4 +41,5 @@ class AutoLoginUrlConvertTextClass {
         ->create($this->uid, $matches[0], TRUE);
     }
   }
+
 }
