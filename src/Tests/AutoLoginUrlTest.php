@@ -60,8 +60,8 @@ class AutoLoginUrlTest extends BrowserTestBase {
     $this->drupalGet($url);
 
     // Make assertions.
-    $this->assertResponse(200, t('User logged in successfully.'));
-    $this->assertText($user->get('name')->value, t('User name is visible, hence user is logged in.'));
+    $this->assertSession()->statusCodeEquals(200, t('User logged in successfully.'));
+    $this->assertSession()->pageTextContains($user->get('name')->value);
 
     // Create another user and login again.
     $user2 = $this->createUser([
@@ -75,8 +75,8 @@ class AutoLoginUrlTest extends BrowserTestBase {
     $this->drupalGet($url);
 
     // Make assertions.
-    $this->assertResponse(200, t('User 2 logged in successfully.'));
-    $this->assertText($user2->get('name')->value, t('User 2 name is visible, hence user is logged in.'));
+    $this->assertSession()->statusCodeEquals(200, t('User 2 logged in successfully.'));
+    $this->assertSession()->pageTextContains($user2->get('name')->value);
   }
 
   /**
@@ -101,8 +101,8 @@ class AutoLoginUrlTest extends BrowserTestBase {
     $this->drupalGet($url);
 
     // Make assertions.
-    $this->assertResponse(200, t('User logged in successfully.'));
-    $this->assertText($user->get('name')->value, t('User name is visible, hence user is logged in.'));
+    $this->assertSession()->statusCodeEquals(200, t('User logged in successfully.'));
+    $this->assertSession()->pageTextContains($user->get('name')->value);
   }
 
   /**
@@ -122,7 +122,7 @@ class AutoLoginUrlTest extends BrowserTestBase {
     // Access 10 false URLs. Essentially triggering flood.
     for ($i = 1; $i < 6; $i++) {
       $this->drupalGet('autologinurl/' . $i . '/some-token' . $i);
-      $this->assertResponse(403, t('Got access denied page.'));
+      $this->assertSession()->statusCodeEquals(403, t('Got access denied page.'));
     }
 
     // Generate actual auto login url for this user.
@@ -132,9 +132,8 @@ class AutoLoginUrlTest extends BrowserTestBase {
     $this->drupalGet($url);
 
     // Make assertions.
-    $this->assertResponse(403, t('Got access denied page.'));
-    $this->assertText(t('Sorry, too many failed login attempts from your IP address. This IP address is temporarily blocked. Try again later.'),
-          t('Cannot login message visible.'));
+    $this->assertSession()->statusCodeEquals(403, t('Got access denied page.'));
+    $this->assertSession()->pageTextContains(t('Sorry, too many failed login attempts from your IP address. This IP address is temporarily blocked. Try again later.'));
 
     // Clear flood table. I am using sql instead of the flood interface
     // (\Drupal::flood()->clear('user.failed_login_ip');) because it does not
@@ -145,8 +144,8 @@ class AutoLoginUrlTest extends BrowserTestBase {
 
     // Try to login again.
     $this->drupalGet($url);
-    $this->assertResponse(200, t('User logged in successfully.'));
-    $this->assertText($user->get('name')->value, t('User name is visible, hence user is logged in.'));
+    $this->assertSession()->statusCodeEquals(200, t('User logged in successfully.'));
+    $this->assertSession()->pageTextContains($user->get('name')->value);
   }
 
 }
