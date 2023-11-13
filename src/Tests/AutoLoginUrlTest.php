@@ -28,6 +28,13 @@ class AutoLoginUrlTest extends BrowserTestBase {
   protected $profile = 'minimal';
 
   /**
+   * The theme to use with this test.
+   *
+   * @var string
+   */
+  protected $defaultTheme = 'stark';
+
+  /**
    * {@inheritdoc}
    */
   protected function setUp(): void {

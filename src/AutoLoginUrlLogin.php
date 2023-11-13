@@ -2,7 +2,10 @@
 
 namespace Drupal\auto_login_url;
 
+use Drupal\auto_login_url\AutoLoginUrlGeneral;
 use Drupal\Component\Utility\Crypt;
+use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Database\Connection;
 use Drupal\Core\Site\Settings;
 use Drupal\user\Entity\User;
 
@@ -14,10 +17,33 @@ use Drupal\user\Entity\User;
 class AutoLoginUrlLogin {
 
   /**
+   * The config factory service.
+   *
+   * @var \Drupal\Core\Config\ConfigFactoryInterface
+   */
+  protected $configFactory;
+
+  /**
+   * The database connection.
+   *
+   * @var \Drupal\Core\Database\Connection
+   */
+  protected $connection;
+
+  /**
+   * The Auto Login Url General service.
+   *
+   * @var \Drupal\auto_login_url\AutoLoginUrlGeneral
+   */
+  protected $autoLoginUrlGeneral;
+
+  /**
    * Constructor.
    */
-  public function __construct() {
-
+  public function __construct(ConfigFactoryInterface $config_factory, Connection $connection, AutoLoginUrlGeneral $auto_login_url_general) {
+    $this->configFactory = $config_factory;
+    $this->connection = $connection;
+    $this->autoLoginUrlGeneral = $auto_login_url_general;
   }
 
   /**
@@ -33,20 +59,19 @@ class AutoLoginUrlLogin {
    */
   public function login($uid, $hash) {
 
-    $config = \Drupal::config('auto_login_url.settings');
-    $connection = \Drupal::database();
+    $config = $this->configFactory->get('auto_login_url.settings');
 
     // Get ALU secret.
-    $auto_login_url_secret = \Drupal::service('auto_login_url.general')->getSecret();
+    $auto_login_url_secret = $this->autoLoginUrlGeneral->getSecret();
 
     // Get user password.
-    $password = \Drupal::service('auto_login_url.general')->getUserHash($uid);
+    $password = $this->autoLoginUrlGeneral->getUserHash($uid);
 
     // Create key.
     $key = Settings::getHashSalt() . $auto_login_url_secret . $password;
 
     // Get if the hash is in the db.
-    $result = $connection->select('auto_login_url', 'a')
+    $result = $this->connection->select('auto_login_url', 'a')
       ->fields('a', ['id', 'uid', 'destination'])
       ->condition('hash', Crypt::hmacBase64($hash, $key), '=')
       ->execute()
@@ -57,14 +82,14 @@ class AutoLoginUrlLogin {
       user_login_finalize($account);
 
       // Update the user table timestamp noting user has logged in.
-      $connection->update('users_field_data')
+      $this->connection->update('users_field_data')
         ->fields(['login' => time()])
         ->condition('uid', $result['uid'])
         ->execute();
 
       // Delete auto login URL, if option checked.
       if ($config->get('delete')) {
-        $connection->delete('auto_login_url')
+        $this->connection->delete('auto_login_url')
           ->condition('id', [$result['id']])
           ->execute();
       }

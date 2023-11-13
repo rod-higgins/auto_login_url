@@ -1,10 +1,10 @@
 services:
   auto_login_url.create:
     class: Drupal\auto_login_url\AutoLoginUrlCreate
-    arguments: ['@database']
+    arguments: ['@database', '@config.factory', '@auto_login_url.general']
   auto_login_url.login:
     class: Drupal\auto_login_url\AutoLoginUrlLogin
-    arguments: []
+    arguments: ['@config.factory', '@database', '@auto_login_url.general']
   auto_login_url.general:
     class: Drupal\auto_login_url\AutoLoginUrlGeneral
-    arguments: []
+    arguments: ['@config.factory', '@flood', '@logger.factory', '@request_stack', '@database']

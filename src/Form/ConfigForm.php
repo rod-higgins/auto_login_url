@@ -2,8 +2,11 @@
 
 namespace Drupal\auto_login_url\Form;
 
+use Drupal\auto_login_url\AutoLoginUrlGeneral;
+use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Class ConfigForm.
@@ -11,6 +14,35 @@ use Drupal\Core\Form\FormStateInterface;
  * @package Drupal\auto_login_url\Form
  */
 class ConfigForm extends ConfigFormBase {
+
+  /**
+   * The Auto Login Url General service.
+   *
+   * @var \Drupal\auto_login_url\AutoLoginUrlGeneral
+   */
+  protected $autoLoginUrlGeneral;
+
+  /**
+   * Constructs a ConfigForm object.
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
+   *   The factory for configuration objects.
+   * @param \Drupal\auto_login_url\AutoLoginUrlGeneral $auto_login_url_general
+   *   The Auto Login Url General service.
+   */
+  public function __construct(ConfigFactoryInterface $config_factory, AutoLoginUrlGeneral $auto_login_url_general) {
+    parent::__construct($config_factory);
+    $this->autoLoginUrlGeneral = $auto_login_url_general;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function create(ContainerInterface $container) {
+    return new static(
+      $container->get('config.factory'),
+      $container->get('auto_login_url.general')
+    );
+  }
 
   /**
    * {@inheritdoc}
@@ -30,7 +62,7 @@ class ConfigForm extends ConfigFormBase {
       '#type' => 'textfield',
       '#title' => $this->t('Secret word'),
       '#required' => TRUE,
-      '#default_value' => \Drupal::service('auto_login_url.general')->getSecret(),
+      '#default_value' => $this->autoLoginUrlGeneral->getSecret(),
       '#description' => $this->t('Secret word to create hashes that are stored in DB.
         Every time this changes all previous URLs are invalidated.'),
     ];
