@@ -2,11 +2,11 @@
 
 namespace Drupal\auto_login_url;
 
-use Drupal\auto_login_url\AutoLoginUrlGeneral;
 use Drupal\Component\Utility\Crypt;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Database\Connection;
 use Drupal\Core\Site\Settings;
+use Drupal\Core\Url;
 
 /**
  * Class AutoLoginUrlCreate.
@@ -39,7 +39,7 @@ class AutoLoginUrlCreate {
   /**
    * Constructor.
    */
-  public function __construct(Connection $connection,ConfigFactoryInterface $config_factory, AutoLoginUrlGeneral $auto_login_url_general) {
+  public function __construct(Connection $connection, ConfigFactoryInterface $config_factory, AutoLoginUrlGeneral $auto_login_url_general) {
     $this->connection = $connection;
     $this->configFactory = $config_factory;
     $this->autoLoginUrlGeneral = $auto_login_url_general;
@@ -108,14 +108,7 @@ class AutoLoginUrlCreate {
       ])
       ->execute();
 
-    // Check if link is absolute.
-    $absolute_path = '';
-    if ($absolute) {
-      global $base_url;
-      $absolute_path = $base_url . '/';
-    }
-
-    return $absolute_path . 'autologinurl/' . $uid . '/' . $hash;
+    return Url::fromRoute('auto_login_url.login', ['uid' => $uid, 'hash' => $hash], ['absolute' => $absolute])->toString();
   }
 
   /**

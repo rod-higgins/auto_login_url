@@ -6,6 +6,7 @@ use Drupal\auto_login_url\AutoLoginUrlGeneral;
 use Drupal\Component\Utility\Crypt;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Database\Connection;
+use Drupal\Core\Url;
 use Drupal\Core\Site\Settings;
 use Drupal\user\Entity\User;
 
@@ -96,12 +97,10 @@ class AutoLoginUrlLogin {
 
       // Get destination URL.
       $destination = urldecode($result['destination']);
-      $destination =
-        strpos($destination, 'http://') !== FALSE
-        || strpos($destination, 'https://') !== FALSE ?
-          $destination : '/' . $destination;
+      $destination = (strpos($destination, 'http://') !== FALSE || strpos($destination, 'https://') !== FALSE) ?
+          $destination :
+          Url::fromUri('internal:/' . $destination, ['absolute' => TRUE])->toString();
 
-      // Return destination.
       return $destination;
     }
 

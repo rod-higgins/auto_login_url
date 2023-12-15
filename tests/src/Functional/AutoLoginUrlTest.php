@@ -1,6 +1,8 @@
 <?php
 
-namespace Drupal\auto_login_url\Tests;
+declare(strict_types = 1);
+
+namespace Drupal\Tests\auto_login_url\Functional;
 
 use Drupal\Tests\BrowserTestBase;
 use Drupal\user\Entity\Role;
@@ -18,14 +20,10 @@ class AutoLoginUrlTest extends BrowserTestBase {
    *
    * @var array
    */
-  protected static $modules = ['auto_login_url'];
-
-  /**
-   * The installation profile to use with this test.
-   *
-   * @var string
-   */
-  protected $profile = 'minimal';
+  protected static $modules = [
+    'auto_login_url',
+    'user',
+  ];
 
   /**
    * The theme to use with this test.
@@ -40,14 +38,13 @@ class AutoLoginUrlTest extends BrowserTestBase {
   protected function setUp(): void {
     parent::setUp();
 
-    $role = Role::load('authenticated');
-    $role->grantPermission('use auto login url');
-    $role->save();
+    // $role = Role::load('authenticated');
+    // $role->grantPermission('use auto login url');
+    // $role->save();
     $role = Role::load('anonymous');
     $role->grantPermission('use auto login url');
     $role->save();
-    $this->additionalCurlOptions = [CURLOPT_FOLLOWLOCATION => TRUE];
-
+    // $this->additionalCurlOptions = [CURLOPT_FOLLOWLOCATION => TRUE];
   }
 
   /**
@@ -55,20 +52,23 @@ class AutoLoginUrlTest extends BrowserTestBase {
    */
   public function testAluTokenGenerationCheck() {
 
+    // Start the browsing session.
+    $session = $this->assertSession();
+
     // Create user.
     $user = $this->createUser([
       'use auto login url',
     ]);
 
     // Create an auto login url for this user.
-    $url = auto_login_url_create($user->get('uid')->value, 'user/' . $user->get('uid')->value);
+    $url = auto_login_url_create($user->get('uid')->value, 'user/' . $user->get('uid')->value, TRUE);
 
     // Access url.
     $this->drupalGet($url);
 
     // Make assertions.
-    $this->assertSession()->statusCodeEquals(200, t('User logged in successfully.'));
-    $this->assertSession()->pageTextContains($user->get('name')->value);
+    $session->statusCodeEquals(200);
+    $session->pageTextContains($user->get('name')->value);
 
     // Create another user and login again.
     $user2 = $this->createUser([
@@ -76,13 +76,13 @@ class AutoLoginUrlTest extends BrowserTestBase {
     ]);
 
     // Create an auto login url for this user.
-    $url = auto_login_url_create($user2->get('uid')->value, 'user/' . $user2->get('uid')->value);
+    $url = auto_login_url_create($user2->get('uid')->value, 'user/' . $user2->get('uid')->value, TRUE);
 
     // Access url.
     $this->drupalGet($url);
 
     // Make assertions.
-    $this->assertSession()->statusCodeEquals(200, t('User 2 logged in successfully.'));
+    $this->assertSession()->statusCodeEquals(200);
     $this->assertSession()->pageTextContains($user2->get('name')->value);
   }
 
@@ -102,13 +102,13 @@ class AutoLoginUrlTest extends BrowserTestBase {
     ]);
 
     // Create an auto login url for this user.
-    $url = auto_login_url_create($user->get('uid')->value, 'user/' . $user->get('uid')->value);
+    $url = auto_login_url_create($user->get('uid')->value, 'user/' . $user->get('uid')->value, TRUE);
 
     // Access url.
     $this->drupalGet($url);
 
     // Make assertions.
-    $this->assertSession()->statusCodeEquals(200, t('User logged in successfully.'));
+    $this->assertSession()->statusCodeEquals(200);
     $this->assertSession()->pageTextContains($user->get('name')->value);
   }
 
@@ -129,18 +129,18 @@ class AutoLoginUrlTest extends BrowserTestBase {
     // Access 10 false URLs. Essentially triggering flood.
     for ($i = 1; $i < 6; $i++) {
       $this->drupalGet('autologinurl/' . $i . '/some-token' . $i);
-      $this->assertSession()->statusCodeEquals(403, t('Got access denied page.'));
+      $this->assertSession()->statusCodeEquals(403);
     }
 
     // Generate actual auto login url for this user.
-    $url = auto_login_url_create($user->get('uid')->value, 'user/' . $user->get('uid')->value);
+    $url = auto_login_url_create($user->get('uid')->value, 'user/' . $user->get('uid')->value, TRUE);
 
     // Access url.
     $this->drupalGet($url);
 
     // Make assertions.
-    $this->assertSession()->statusCodeEquals(403, t('Got access denied page.'));
-    $this->assertSession()->pageTextContains(t('Sorry, too many failed login attempts from your IP address. This IP address is temporarily blocked. Try again later.'));
+    $this->assertSession()->statusCodeEquals(403);
+    $this->assertSession()->pageTextContains('Sorry, too many failed login attempts from your IP address. This IP address is temporarily blocked. Try again later.');
 
     // Clear flood table. I am using sql instead of the flood interface
     // (\Drupal::flood()->clear('user.failed_login_ip');) because it does not
@@ -151,7 +151,7 @@ class AutoLoginUrlTest extends BrowserTestBase {
 
     // Try to login again.
     $this->drupalGet($url);
-    $this->assertSession()->statusCodeEquals(200, t('User logged in successfully.'));
+    $this->assertSession()->statusCodeEquals(200);
     $this->assertSession()->pageTextContains($user->get('name')->value);
   }
 
