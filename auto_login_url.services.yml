@@ -7,4 +7,5 @@ services:
     arguments: ['@config.factory', '@database', '@auto_login_url.general']
   auto_login_url.general:
     class: Drupal\auto_login_url\AutoLoginUrlGeneral
-    arguments: ['@config.factory', '@flood', '@logger.factory', '@request_stack', '@database']
+    arguments: ['@config.factory', '@flood', '@logger.factory', '@request_stack', '@entity_type.manager']
+

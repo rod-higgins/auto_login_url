@@ -4,7 +4,8 @@ namespace Drupal\auto_login_url;
 
 use Drupal\Component\Utility\Random;
 use Drupal\Core\Config\ConfigFactoryInterface;
-use Drupal\Core\Database\Connection;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Drupal\user\Entity\User;
 use Drupal\Core\Flood\FloodInterface;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -17,6 +18,7 @@ use Symfony\Component\HttpFoundation\RequestStack;
 class AutoLoginUrlGeneral {
 
   /**
+<<<<<<< HEAD
    * The config factory service.
    *
    * @var \Drupal\Core\Config\ConfigFactoryInterface
@@ -45,25 +47,26 @@ class AutoLoginUrlGeneral {
   protected $requestStack;
 
   /**
-   * The database connection.
+   * The entity type manager.
    *
-   * @var \Drupal\Core\Database\Connection
+   * @var \Drupal\Core\Entity\EntityTypeManagerInterface
    */
-  protected $connection;
+  protected $entityTypeManager;
+
 
   /**
    * Constructor.
    */
   public function __construct(ConfigFactoryInterface $config_factory,
-   FloodInterface $flood,
-    LoggerChannelFactoryInterface $logger_factory,
-    RequestStack $request_stack,
-    Connection $connection) {
+  FloodInterface $flood,
+  LoggerChannelFactoryInterface $logger_factory,
+  RequestStack $request_stack,
+  EntityTypeManagerInterface $entity_type_manager) {
     $this->configFactory = $config_factory;
     $this->flood = $flood;
     $this->loggerFactory = $logger_factory;
     $this->requestStack = $request_stack;
-    $this->connection = $connection;
+    $this->entityTypeManager = $entity_type_manager;
   }
 
   /**
@@ -137,12 +140,16 @@ class AutoLoginUrlGeneral {
    *   Hashed password.
    */
   public function getUserHash($uid) {
-    $query = $this->connection->select('users_field_data', 'u');
-    $query->addField('u', 'pass');
-    $query->condition('u.uid', $uid);
-    $query->range(0, 1);
+    $password = '';
+    $user_exists = $this->entityTypeManager->getStorage('user')->getQuery()
+    ->accessCheck(FALSE)
+    ->condition('uid', $uid)
+    ->execute();
 
-    return $query->execute()->fetchField();
+    if (!empty($user_exists)) {
+      $password = User::load($uid)->pass->value;
+    }
+    return $password;
   }
 
 }
