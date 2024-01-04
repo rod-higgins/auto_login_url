@@ -61,7 +61,7 @@ class AutoLoginUrlTest extends BrowserTestBase {
     ]);
 
     // Create an auto login url for this user.
-    $url = auto_login_url_create($user->get('uid')->value, 'user/' . $user->get('uid')->value, TRUE);
+    $url = auto_login_url_create((int) $user->get('uid')->value, 'user/' . $user->get('uid')->value, TRUE);
 
     // Access url.
     $this->drupalGet($url);
@@ -76,7 +76,7 @@ class AutoLoginUrlTest extends BrowserTestBase {
     ]);
 
     // Create an auto login url for this user.
-    $url = auto_login_url_create($user2->get('uid')->value, 'user/' . $user2->get('uid')->value, TRUE);
+    $url = auto_login_url_create((int) $user2->get('uid')->value, 'user/' . $user2->get('uid')->value, TRUE);
 
     // Access url.
     $this->drupalGet($url);
@@ -102,7 +102,7 @@ class AutoLoginUrlTest extends BrowserTestBase {
     ]);
 
     // Create an auto login url for this user.
-    $url = auto_login_url_create($user->get('uid')->value, 'user/' . $user->get('uid')->value, TRUE);
+    $url = auto_login_url_create((int) $user->get('uid')->value, 'user/' . $user->get('uid')->value, TRUE);
 
     // Access url.
     $this->drupalGet($url);
@@ -133,7 +133,7 @@ class AutoLoginUrlTest extends BrowserTestBase {
     }
 
     // Generate actual auto login url for this user.
-    $url = auto_login_url_create($user->get('uid')->value, 'user/' . $user->get('uid')->value, TRUE);
+    $url = auto_login_url_create((int) $user->get('uid')->value, 'user/' . $user->get('uid')->value, TRUE);
 
     // Access url.
     $this->drupalGet($url);

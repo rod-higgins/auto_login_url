@@ -10,7 +10,7 @@ use Drupal\Core\Routing\RouteMatchInterface;
 /**
  * Implements hook_help().
  */
-function auto_login_url_help($route_name, RouteMatchInterface $route_match) {
+function auto_login_url_help(string $route_name, RouteMatchInterface $route_match): string {
   switch ($route_name) {
     case 'help.page.auto_login_url':
       $output = '';
@@ -19,12 +19,13 @@ function auto_login_url_help($route_name, RouteMatchInterface $route_match) {
 
       return $output;
   }
+  return '';
 }
 
 /**
  * Wrapper function for AutoLoginUrlCreate::create().
  */
-function auto_login_url_create($uid, $destination, $absolute = FALSE) {
+function auto_login_url_create(int $uid, string $destination, bool $absolute = FALSE): string {
   $alu_service = \Drupal::service('auto_login_url.create');
   return $alu_service->create($uid, $destination, $absolute);
 }
@@ -32,7 +33,7 @@ function auto_login_url_create($uid, $destination, $absolute = FALSE) {
 /**
  * Wrapper function for AutoLoginUrlCreate::convertText().
  */
-function auto_login_url_convert_text($uid, $text) {
+function auto_login_url_convert_text(int $uid, string $text): string {
   $alu_service = \Drupal::service('auto_login_url.create');
   return $alu_service->convertText($uid, $text);
 }
@@ -40,7 +41,7 @@ function auto_login_url_convert_text($uid, $text) {
 /**
  * Implements hook_cron().
  */
-function auto_login_url_cron() {
+function auto_login_url_cron(): void {
   $config = \Drupal::config('auto_login_url.settings');
 
   // Delete over one month auto logins.
@@ -53,7 +54,7 @@ function auto_login_url_cron() {
 /**
  * Implements hook_token_info().
  */
-function auto_login_url_token_info() {
+function auto_login_url_token_info(): array {
 
   // Add new tokens.
   $info = [];
@@ -76,7 +77,7 @@ function auto_login_url_token_info() {
 /**
  * Implements hook_tokens().
  */
-function auto_login_url_tokens($type, $tokens, array $data = [], array $options = []) {
+function auto_login_url_tokens(string $type, array $tokens, array $data = [], array $options = []): array {
   $replacements = [];
   if ($type == 'user') {
     $user = $data['user'];
