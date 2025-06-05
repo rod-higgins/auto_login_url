@@ -217,9 +217,6 @@ final class ConfigForm extends ConfigFormBase {
     return parent::buildForm($form, $form_state);
   }
 
-  /**
-   * {@inheritdoc}
-   */
   public function validateForm(array &$form, FormStateInterface $form_state): void {
     parent::validateForm($form, $form_state);
 
@@ -227,8 +224,8 @@ final class ConfigForm extends ConfigFormBase {
     if ($expiration < self::MIN_EXPIRATION || $expiration > self::MAX_EXPIRATION) {
       $form_state->setErrorByName('auto_login_url_expiration', 
         $this->t('Expiration must be between @min and @max seconds.', [
-          '@min' => self::MIN_EXPIRATION,
-          '@max' => self::MAX_EXPIRATION,
+          '@min' => number_format(self::MIN_EXPIRATION),
+          '@max' => number_format(self::MAX_EXPIRATION),
         ])
       );
     }
@@ -243,12 +240,21 @@ final class ConfigForm extends ConfigFormBase {
       );
     }
 
-    // Validate secret key if provided.
-    $secret = $form_state->getValue('auto_login_url_secret');
-    if (!empty($secret) && strlen($secret) < 16) {
-      $form_state->setErrorByName('auto_login_url_secret', 
-        $this->t('Secret key must be at least 16 characters long.')
-      );
+    // Enhanced secret key validation
+    $secret = trim((string) $form_state->getValue('auto_login_url_secret'));
+    if (!empty($secret)) {
+      if (strlen($secret) < 16) {
+        $form_state->setErrorByName('auto_login_url_secret', 
+          $this->t('Secret key must be at least 16 characters long.')
+        );
+      }
+      
+      // Check for common weak patterns
+      if (preg_match('/^(.)\1+$/', $secret) || in_array(strtolower($secret), ['password', 'secret', '1234567890123456'])) {
+        $form_state->setErrorByName('auto_login_url_secret', 
+          $this->t('Please choose a more secure secret key.')
+        );
+      }
     }
   }
 

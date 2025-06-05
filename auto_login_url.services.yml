@@ -1,27 +1,33 @@
 services:
   auto_login_url.create:
     class: Drupal\auto_login_url\AutoLoginUrlCreate
-    arguments: 
+    arguments:
       - '@database'
       - '@config.factory'
       - '@auto_login_url.general'
       - '@logger.factory'
+    tags:
+      - { name: backend_overridable }
 
   auto_login_url.login:
     class: Drupal\auto_login_url\AutoLoginUrlLogin
-    arguments: 
+    arguments:
       - '@config.factory'
       - '@database'
       - '@auto_login_url.general'
       - '@user.authentication'
       - '@current_user'
       - '@logger.factory'
+    tags:
+      - { name: backend_overridable }
 
   auto_login_url.general:
     class: Drupal\auto_login_url\AutoLoginUrlGeneral
-    arguments: 
+    arguments:
       - '@config.factory'
       - '@flood'
       - '@logger.factory'
       - '@request_stack'
       - '@entity_type.manager'
+    tags:
+      - { name: backend_overridable }

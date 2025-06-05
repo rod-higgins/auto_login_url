@@ -174,45 +174,63 @@ final class AutoLoginUrlLogin {
 
   /**
    * Validates hash and retrieves login data from database.
-   *
-   * @param int $uid
-   *   The user ID.
-   * @param string $hash
-   *   The hash token.
-   *
-   * @return array|false
-   *   Login data array on success, FALSE on failure.
    */
   private function validateAndRetrieveLoginData(int $uid, string $hash): array|false {
-    // Generate the key for hash verification.
-    $auto_login_url_secret = $this->autoLoginUrlGeneral->getSecret();
-    $password = $this->autoLoginUrlGeneral->getUserHash($uid);
-    $key = Settings::getHashSalt() . $auto_login_url_secret . $password;
-
-    // Generate expected database hash.
-    $expected_hash_db = Crypt::hmacBase64($hash, $key);
-
-    // Query database for matching record.
+    $start_time = microtime(TRUE);
+    
     try {
+      // Generate the key for hash verification.
+      $auto_login_url_secret = $this->autoLoginUrlGeneral->getSecret();
+      $password = $this->autoLoginUrlGeneral->getUserHash($uid);
+      $key = Settings::getHashSalt() . $auto_login_url_secret . $password;
+
+      // Generate expected database hash.
+      $expected_hash_db = Crypt::hmacBase64($hash, $key);
+
+      // Query database for matching record.
       $result = $this->connection->select('auto_login_url', 'a')
-        ->fields('a', ['id', 'uid', 'destination', 'timestamp'])
+        ->fields('a', ['id', 'uid', 'destination', 'timestamp', 'ip_address'])
         ->condition('uid', $uid)
         ->condition('hash', $expected_hash_db)
         ->range(0, 1)
         ->execute()
         ->fetchAssoc();
 
+      $processing_time = round((microtime(TRUE) - $start_time) * 1000, 2);
+      
       if (empty($result)) {
-        $this->logger->warning('No matching auto login record found for user @uid', ['@uid' => $uid]);
+        $this->logger->warning('No matching auto login record found for user @uid (processing time: @time ms)', [
+          '@uid' => $uid,
+          '@time' => $processing_time,
+        ]);
         return FALSE;
+      }
+
+      // Enhanced security: Check if request IP matches creation IP (optional)
+      $current_ip = $this->autoLoginUrlGeneral->getClientIp();
+      if (!empty($result['ip_address']) && $result['ip_address'] !== $current_ip) {
+        $this->logger->security('Auto login IP mismatch for user @uid: created from @create_ip, used from @current_ip', [
+          '@uid' => $uid,
+          '@create_ip' => $result['ip_address'],
+          '@current_ip' => $current_ip,
+        ]);
+        // Note: Don't fail here as users may legitimately change networks
       }
 
       // Use timing-safe comparison for additional security.
       $stored_hash = $this->getStoredHash($result['id']);
       if ($stored_hash === FALSE || !hash_equals($stored_hash, $expected_hash_db)) {
-        $this->logger->warning('Hash verification failed for user @uid', ['@uid' => $uid]);
+        $this->logger->warning('Hash verification failed for user @uid (processing time: @time ms)', [
+          '@uid' => $uid,
+          '@time' => $processing_time,
+        ]);
         return FALSE;
       }
+
+      $this->logger->info('Successful hash validation for user @uid (processing time: @time ms)', [
+        '@uid' => $uid,
+        '@time' => $processing_time,
+      ]);
 
       return $result;
     }

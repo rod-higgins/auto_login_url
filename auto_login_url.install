@@ -7,9 +7,6 @@
 
 declare(strict_types=1);
 
-/**
- * Implements hook_schema().
- */
 function auto_login_url_schema(): array {
   $schema['auto_login_url'] = [
     'description' => 'Stores auto login URL tokens and associated data.',
@@ -44,6 +41,17 @@ function auto_login_url_schema(): array {
         'default' => 0,
         'description' => 'Unix timestamp when the token was created.',
       ],
+      'ip_address' => [
+        'type' => 'varchar',
+        'length' => 45, // Support IPv6
+        'not null' => FALSE,
+        'description' => 'IP address where token was created.',
+      ],
+      'user_agent' => [
+        'type' => 'text',
+        'not null' => FALSE,
+        'description' => 'User agent when token was created.',
+      ],
     ],
     'primary key' => ['id'],
     'indexes' => [
@@ -51,6 +59,7 @@ function auto_login_url_schema(): array {
       'uid_lookup' => ['uid'],
       'timestamp_cleanup' => ['timestamp'],
       'uid_timestamp' => ['uid', 'timestamp'],
+      'ip_timestamp' => ['ip_address', 'timestamp'],
     ],
     'foreign keys' => [
       'auto_login_user' => [
@@ -131,28 +140,35 @@ function auto_login_url_update_10001(): void {
 }
 
 /**
- * Update 11001: Drupal 11 compatibility updates.
+ * Update 11001: Add IP tracking and enhanced indexes.
  */
 function auto_login_url_update_11001(): void {
-  // Ensure configuration is compatible with Drupal 11.
-  $config_factory = \Drupal::configFactory();
-  $config = $config_factory->getEditable('auto_login_url.settings');
-  
-  // Set default values for any missing configuration.
-  $defaults = [
-    'secret' => '',
-    'expiration' => 2592000,
-    'delete' => FALSE,
-    'token_length' => 64,
-  ];
+  $database = \Drupal::database();
+  $schema = $database->schema();
 
-  foreach ($defaults as $key => $default_value) {
-    if ($config->get($key) === NULL) {
-      $config->set($key, $default_value);
-    }
+  // Add IP address field
+  if (!$schema->fieldExists('auto_login_url', 'ip_address')) {
+    $schema->addField('auto_login_url', 'ip_address', [
+      'type' => 'varchar',
+      'length' => 45,
+      'not null' => FALSE,
+      'description' => 'IP address where token was created.',
+    ]);
   }
 
-  $config->save(TRUE);
-  
-  \Drupal::logger('auto_login_url')->info('Configuration updated for Drupal 11 compatibility.');
+  // Add user agent field
+  if (!$schema->fieldExists('auto_login_url', 'user_agent')) {
+    $schema->addField('auto_login_url', 'user_agent', [
+      'type' => 'text',
+      'not null' => FALSE,
+      'description' => 'User agent when token was created.',
+    ]);
+  }
+
+  // Add IP+timestamp index
+  if (!$schema->indexExists('auto_login_url', 'ip_timestamp')) {
+    $schema->addIndex('auto_login_url', 'ip_timestamp', ['ip_address', 'timestamp']);
+  }
+
+  \Drupal::logger('auto_login_url')->info('Enhanced tracking fields and indexes added.');
 }

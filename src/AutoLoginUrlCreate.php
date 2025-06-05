@@ -247,51 +247,43 @@ final class AutoLoginUrlCreate {
   }
 
   /**
-   * Generates secure entropy for hash creation.
-   *
-   * @param int $uid
-   *   The user ID.
-   * @param string $destination
-   *   The destination URL.
-   * @param int $attempt
-   *   The current attempt number.
-   *
-   * @return string
-   *   Secure entropy string.
-   */
-  private function generateSecureEntropy(int $uid, string $destination, int $attempt): string {
-    try {
-      // Use cryptographically secure random bytes.
-      $random_bytes = random_bytes(32);
-      $entropy_parts = [
-        $uid,
-        $destination,
-        time(),
-        $attempt,
-        bin2hex($random_bytes),
-        uniqid('', TRUE),
-      ];
+ * Generates secure entropy for hash creation.
+ */
+private function generateSecureEntropy(int $uid, string $destination, int $attempt): string {
+  try {
+    // Use random_bytes for cryptographic security.
+    $random_bytes = random_bytes(32);
+    $entropy_parts = [
+      $uid,
+      $destination,
+      time(),
+      $attempt,
+      bin2hex($random_bytes),
+      uniqid('', TRUE),
+      getmypid(), // Add process ID for additional entropy
+    ];
 
-      return implode('|', $entropy_parts);
-    }
-    catch (\Exception $e) {
-      // Fallback if random_bytes fails.
-      $this->logger->warning('random_bytes failed, using fallback entropy generation: @message', [
-        '@message' => $e->getMessage(),
-      ]);
-
-      $entropy_parts = [
-        $uid,
-        $destination,
-        microtime(TRUE),
-        $attempt,
-        uniqid('', TRUE),
-        mt_rand(),
-      ];
-
-      return implode('|', $entropy_parts);
-    }
+    return implode('|', $entropy_parts);
   }
+  catch (\Exception $e) {
+    // Enhanced fallback with better logging
+    $this->logger->warning('random_bytes failed, using fallback entropy generation: @message', [
+      '@message' => $e->getMessage(),
+    ]);
+    
+    $entropy_parts = [
+      $uid,
+      $destination,
+      hrtime(TRUE), // Use high-resolution time
+      $attempt,
+      uniqid('', TRUE),
+      mt_rand(),
+      memory_get_usage(),
+    ];
+
+    return implode('|', $entropy_parts);
+  }
+}
 
   /**
    * Generates a hash token from entropy.
