@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\auto_login_url\Kernel;
 
+use Drupal\Core\Routing\TrustedRedirectResponse;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 use Drupal\auto_login_url\Controller\AutoLoginUrlMainController;
 use Drupal\auto_login_url\AutoLoginUrlCreate;
 use Drupal\KernelTests\KernelTestBase;
@@ -59,7 +61,7 @@ final class AutoLoginUrlControllerKernelTest extends KernelTestBase {
 
     $this->controller = $this->container->get('class_resolver')
       ->getInstanceFromDefinition(AutoLoginUrlMainController::class);
-    
+
     $this->urlCreateService = $this->container->get('auto_login_url.create');
 
     // Create a test user.
@@ -91,7 +93,7 @@ final class AutoLoginUrlControllerKernelTest extends KernelTestBase {
     // Test the login method.
     $response = $this->controller->login($uid, $hash);
 
-    $this->assertInstanceOf(\Symfony\Component\HttpFoundation\RedirectResponse::class, $response);
+    $this->assertInstanceOf(RedirectResponse::class, $response);
     $this->assertEquals(302, $response->getStatusCode());
     $this->assertStringContains('user/' . $this->testUser->id(), $response->getTargetUrl());
   }
@@ -163,7 +165,8 @@ final class AutoLoginUrlControllerKernelTest extends KernelTestBase {
     // Set very short expiration.
     $config = $this->container->get('config.factory')
       ->getEditable('auto_login_url.settings');
-    $config->set('expiration', 1); // 1 second
+    // 1 second
+    $config->set('expiration', 1);
     $config->save();
 
     // Create URL and extract hash.
@@ -225,7 +228,7 @@ final class AutoLoginUrlControllerKernelTest extends KernelTestBase {
       $this->controller->login((int) $this->testUser->id(), 'invalid-hash');
     }
     catch (AccessDeniedHttpException $e) {
-      // Expected
+      // Expected.
     }
 
     // Second attempt should be blocked by flood protection.
@@ -259,7 +262,7 @@ final class AutoLoginUrlControllerKernelTest extends KernelTestBase {
       // Test login.
       $response = $this->controller->login((int) $this->testUser->id(), $hash);
 
-      $this->assertInstanceOf(\Symfony\Component\HttpFoundation\RedirectResponse::class, $response);
+      $this->assertInstanceOf(RedirectResponse::class, $response);
       $this->assertStringContains($expectedPath, $response->getTargetUrl());
 
       // Reset user session for next test.
@@ -272,7 +275,7 @@ final class AutoLoginUrlControllerKernelTest extends KernelTestBase {
    */
   public function testLoginWithExternalDestination(): void {
     $externalUrl = 'https://external-site.com/dashboard';
-    
+
     $url = $this->urlCreateService->create(
       (int) $this->testUser->id(),
       $externalUrl,
@@ -284,7 +287,7 @@ final class AutoLoginUrlControllerKernelTest extends KernelTestBase {
 
     $response = $this->controller->login((int) $this->testUser->id(), $hash);
 
-    $this->assertInstanceOf(\Drupal\Core\Routing\TrustedRedirectResponse::class, $response);
+    $this->assertInstanceOf(TrustedRedirectResponse::class, $response);
     $this->assertEquals($externalUrl, $response->getTargetUrl());
   }
 
@@ -295,7 +298,6 @@ final class AutoLoginUrlControllerKernelTest extends KernelTestBase {
     // This test would require creating a URL with a potentially dangerous destination,
     // but our create service already validates destinations.
     // Instead, we test that the controller handles edge cases gracefully.
-    
     $url = $this->urlCreateService->create(
       (int) $this->testUser->id(),
       '<front>',
@@ -306,9 +308,9 @@ final class AutoLoginUrlControllerKernelTest extends KernelTestBase {
     $hash = $matches[2];
 
     $response = $this->controller->login((int) $this->testUser->id(), $hash);
-    
+
     // Should redirect to a safe destination.
-    $this->assertInstanceOf(\Symfony\Component\HttpFoundation\RedirectResponse::class, $response);
+    $this->assertInstanceOf(RedirectResponse::class, $response);
     $targetUrl = $response->getTargetUrl();
     $this->assertIsString($targetUrl);
     $this->assertNotEmpty($targetUrl);
@@ -346,7 +348,7 @@ final class AutoLoginUrlControllerKernelTest extends KernelTestBase {
 
     // Login should succeed and track IP.
     $response = $this->controller->login((int) $this->testUser->id(), $hash);
-    $this->assertInstanceOf(\Symfony\Component\HttpFoundation\RedirectResponse::class, $response);
+    $this->assertInstanceOf(RedirectResponse::class, $response);
   }
 
   /**
@@ -370,7 +372,7 @@ final class AutoLoginUrlControllerKernelTest extends KernelTestBase {
 
     // First login should succeed.
     $response = $this->controller->login((int) $this->testUser->id(), $hash);
-    $this->assertInstanceOf(\Symfony\Component\HttpFoundation\RedirectResponse::class, $response);
+    $this->assertInstanceOf(RedirectResponse::class, $response);
 
     // Reset user session.
     $this->container->get('account_switcher')->switchBack();
@@ -385,9 +387,9 @@ final class AutoLoginUrlControllerKernelTest extends KernelTestBase {
    */
   public function testControllerCreate(): void {
     $container = $this->container;
-    
+
     $controller = AutoLoginUrlMainController::create($container);
-    
+
     $this->assertInstanceOf(AutoLoginUrlMainController::class, $controller);
   }
 
@@ -400,7 +402,8 @@ final class AutoLoginUrlControllerKernelTest extends KernelTestBase {
       'ABC123DEF456',
       'abc_123-def',
       '1234567890123456',
-      str_repeat('a', 64), // Long hash
+    // Long hash.
+      str_repeat('a', 64),
     ];
 
     foreach ($validHashFormats as $hashFormat) {
@@ -410,7 +413,7 @@ final class AutoLoginUrlControllerKernelTest extends KernelTestBase {
         $this->fail("Expected exception for hash: {$hashFormat}");
       }
       catch (AccessDeniedHttpException $e) {
-        // Expected - invalid token but valid format
+        // Expected - invalid token but valid format.
         $this->assertStringContains('Invalid or expired login token', $e->getMessage());
       }
       catch (BadRequestHttpException $e) {
@@ -475,7 +478,6 @@ final class AutoLoginUrlControllerKernelTest extends KernelTestBase {
     // The kill switch should be triggered for every login attempt.
     // We can't easily test this directly, but we can verify the controller
     // doesn't crash when the kill switch is called.
-    
     $url = $this->urlCreateService->create(
       (int) $this->testUser->id(),
       '<front>',
@@ -486,9 +488,9 @@ final class AutoLoginUrlControllerKernelTest extends KernelTestBase {
     $hash = $matches[2];
 
     $response = $this->controller->login((int) $this->testUser->id(), $hash);
-    
+
     // Should succeed without issues.
-    $this->assertInstanceOf(\Symfony\Component\HttpFoundation\RedirectResponse::class, $response);
+    $this->assertInstanceOf(RedirectResponse::class, $response);
   }
 
 }

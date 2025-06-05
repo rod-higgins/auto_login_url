@@ -76,7 +76,8 @@ final class AutoLoginUrlPerformanceSecurityTest extends BrowserTestBase {
     $end_time = microtime(TRUE);
     $duration = $end_time - $start_time;
 
-    // Should complete within reasonable time (less than 10 seconds for 50 URLs).
+    // Should complete within reasonable time
+    // (less than 10 seconds for 50 URLs).
     $this->assertLessThan(10.0, $duration, 'URL creation took too long: ' . $duration . ' seconds');
 
     // All URLs should be unique.
@@ -139,7 +140,6 @@ final class AutoLoginUrlPerformanceSecurityTest extends BrowserTestBase {
     );
 
     preg_match('/autologinurl\/(\d+)\/([^\/]+)/', $valid_url, $matches);
-    $valid_hash = $matches[2];
 
     // Test timing consistency with different invalid hashes.
     $invalid_hashes = [

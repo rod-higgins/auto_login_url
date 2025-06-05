@@ -204,7 +204,6 @@ final class AutoLoginUrlIntegrationTest extends BrowserTestBase {
    */
   public function testFloodProtectionIntegration(): void {
     // Configure aggressive flood protection.
-    $config = $this->config('user.flood');
     $this->container->get('config.factory')
       ->getEditable('user.flood')
       ->set('ip_limit', 2)

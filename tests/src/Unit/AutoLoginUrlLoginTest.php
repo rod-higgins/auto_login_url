@@ -14,6 +14,7 @@ use Drupal\Core\Database\Query\Insert;
 use Drupal\Core\Database\Query\Select;
 use Drupal\Core\Database\Schema\Schema;
 use Drupal\Core\Database\StatementInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Drupal\Core\Logger\LoggerChannelInterface;
 use Drupal\Core\Session\UserSessionInterface;
@@ -64,6 +65,11 @@ final class AutoLoginUrlLoginTest extends UnitTestCase {
   private LoggerChannelInterface $logger;
 
   /**
+   * The mocked entity type manager.
+   */
+  private EntityTypeManagerInterface $entityTypeManager;
+
+  /**
    * The service under test.
    */
   private AutoLoginUrlLogin $urlLoginService;
@@ -81,6 +87,7 @@ final class AutoLoginUrlLoginTest extends UnitTestCase {
     $this->currentUser = $this->createMock(UserSessionInterface::class);
     $this->loggerFactory = $this->createMock(LoggerChannelFactoryInterface::class);
     $this->logger = $this->createMock(LoggerChannelInterface::class);
+    $this->entityTypeManager = $this->createMock(EntityTypeManagerInterface::class);
 
     $this->loggerFactory->method('get')
       ->with('auto_login_url')
@@ -92,7 +99,8 @@ final class AutoLoginUrlLoginTest extends UnitTestCase {
       $this->autoLoginUrlGeneral,
       $this->userAuthentication,
       $this->currentUser,
-      $this->loggerFactory
+      $this->loggerFactory,
+      $this->entityTypeManager
     );
   }
 
@@ -186,15 +194,17 @@ final class AutoLoginUrlLoginTest extends UnitTestCase {
     $statement->method('fetchAssoc')->willReturn($login_data);
 
     $select->method('execute')->willReturn($statement);
-    $this->connection->method('select')->willReturn($select);
 
-    // Mock hash verification.
+    // Mock hash verification query.
     $hash_select = $this->createMock(Select::class);
     $hash_select->method('fields')->willReturnSelf();
     $hash_select->method('condition')->willReturnSelf();
     $hash_statement = $this->createMock(StatementInterface::class);
     $hash_statement->method('fetchField')->willReturn('matching-hash');
     $hash_select->method('execute')->willReturn($hash_statement);
+
+    $this->connection->method('select')
+      ->willReturnOnConsecutiveCalls($select, $hash_select);
 
     // Mock delete operation for expired token.
     $delete = $this->createMock(Delete::class);

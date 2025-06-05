@@ -149,7 +149,7 @@ final class AutoLoginUrlRateLimitTest extends UnitTestCase {
       $this->currentTime - 600,
     ];
 
-    $expected_valid_attempts = [
+    $valid_attempts = [
       $this->currentTime - 1800,
       $this->currentTime - 600,
     ];
@@ -160,7 +160,7 @@ final class AutoLoginUrlRateLimitTest extends UnitTestCase {
 
     $this->state->expects($this->once())
       ->method('set')
-      ->with('auto_login_url.create_rate.123', $expected_valid_attempts);
+      ->with('auto_login_url.create_rate.123', $valid_attempts);
 
     $result = $this->rateLimiter->checkCreationLimit(123);
     $this->assertTrue($result);
@@ -200,12 +200,6 @@ final class AutoLoginUrlRateLimitTest extends UnitTestCase {
     $this->state->method('get')
       ->with('auto_login_url.create_rate.123', [])
       ->willReturn($existing_attempts);
-
-    $expected_attempts = [
-      $this->currentTime - 1800,
-      $this->currentTime - 600,
-      $this->currentTime,
-    ];
 
     $this->state->expects($this->once())
       ->method('set')
