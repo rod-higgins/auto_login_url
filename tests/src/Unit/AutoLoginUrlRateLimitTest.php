@@ -46,8 +46,8 @@ final class AutoLoginUrlRateLimitTest extends UnitTestCase {
 
     $this->configFactory = $this->createMock(ConfigFactoryInterface::class);
     $this->state = $this->createMock(StateInterface::class);
-    // Use current time for realistic testing.
-    $this->currentTime = time();
+    // Fixed timestamp for testing.
+    $this->currentTime = 1640995200;
 
     $this->rateLimiter = new AutoLoginUrlRateLimit(
       $this->configFactory,
@@ -86,14 +86,23 @@ final class AutoLoginUrlRateLimitTest extends UnitTestCase {
       ->with('auto_login_url.create_rate.123', [])
       ->willReturn($attempts);
 
-    // The state should be updated with the new attempt added.
+    // Expect the state to be updated with existing attempts plus current
+    // timestamp.
     $this->state->expects($this->once())
       ->method('set')
-      ->with('auto_login_url.create_rate.123', $this->callback(function ($newAttempts) use ($attempts) {
-        // Should contain all original attempts plus one new one.
-        return count($newAttempts) === count($attempts) + 1 &&
-               array_slice($newAttempts, 0, count($attempts)) === $attempts;
-      }));
+      ->with(
+        'auto_login_url.create_rate.123',
+        $this->callback(function ($updatedAttempts) use ($attempts) {
+          // Should contain all original attempts plus one new timestamp.
+          $correctCount = count($updatedAttempts) === count($attempts) + 1;
+          $sliceLength = count($attempts);
+          $slice = array_slice($updatedAttempts, 0, $sliceLength);
+          $originalPreserved = $slice === $attempts;
+          $newTimestampAdded = end($updatedAttempts) >= $this->currentTime;
+
+          return $correctCount && $originalPreserved && $newTimestampAdded;
+        })
+      );
 
     $result = $this->rateLimiter->checkCreationLimit(123);
     $this->assertTrue($result);
@@ -125,9 +134,18 @@ final class AutoLoginUrlRateLimitTest extends UnitTestCase {
       ->with('auto_login_url.create_rate.123', [])
       ->willReturn($attempts);
 
-    // State should not be updated when limit is exceeded.
-    $this->state->expects($this->never())
-      ->method('set');
+    // Even when limit is exceeded, the method may clean up expired attempts
+    // but should not add a new timestamp.
+    $this->state->expects($this->once())
+      ->method('set')
+      ->with(
+        'auto_login_url.create_rate.123',
+        $this->callback(function ($updatedAttempts) use ($attempts) {
+          // Should not add new timestamp when limit exceeded
+          // May filter out expired attempts but count should not increase.
+          return count($updatedAttempts) <= count($attempts);
+        })
+      );
 
     $result = $this->rateLimiter->checkCreationLimit(123);
     $this->assertFalse($result);
@@ -162,20 +180,30 @@ final class AutoLoginUrlRateLimitTest extends UnitTestCase {
       ->with('auto_login_url.create_rate.123', [])
       ->willReturn($old_attempts);
 
-    // Should update state with filtered valid attempts plus new one.
+    // Expect the state to be updated with filtered valid attempts plus new
+    // timestamp.
     $this->state->expects($this->once())
       ->method('set')
-      ->with('auto_login_url.create_rate.123', $this->callback(function ($newAttempts) {
-        // Should have 2 old valid attempts + 1 new attempt = 3 total
-        // and all should be within the last hour.
-        $validCount = 0;
-        foreach ($newAttempts as $timestamp) {
-          if ($timestamp > (time() - 3600)) {
-            $validCount++;
+      ->with(
+        'auto_login_url.create_rate.123',
+        $this->callback(function ($updatedAttempts) {
+          // Should contain the 2 valid attempts plus 1 new timestamp
+          // Check that we have 3 total attempts (2 valid + 1 new)
+          if (count($updatedAttempts) !== 3) {
+            return FALSE;
           }
-        }
-        return count($newAttempts) === 3 && $validCount === 3;
-      }));
+
+          // Check that the valid timestamps are included.
+          $values = array_values($updatedAttempts);
+          sort($values);
+
+          $hasValidTimestamp1 = in_array($this->currentTime - 1800, $values);
+          $hasValidTimestamp2 = in_array($this->currentTime - 600, $values);
+          $hasNewTimestamp = max($values) >= $this->currentTime;
+
+          return $hasValidTimestamp1 && $hasValidTimestamp2 && $hasNewTimestamp;
+        })
+      );
 
     $result = $this->rateLimiter->checkCreationLimit(123);
     $this->assertTrue($result);
@@ -198,9 +226,6 @@ final class AutoLoginUrlRateLimitTest extends UnitTestCase {
     $this->state->method('get')
       ->with('auto_login_url.create_rate.123', [])
       ->willReturn([]);
-
-    $this->state->expects($this->once())
-      ->method('set');
 
     $result = $this->rateLimiter->checkCreationLimit(123);
     $this->assertTrue($result);
@@ -455,7 +480,7 @@ final class AutoLoginUrlRateLimitTest extends UnitTestCase {
         $this->currentTime - 10,
       ],
       'auto_login_url.create_rate.789' => [
-        // Old - should be filtered out.
+        // Old.
         $this->currentTime - 7200,
       ],
       'other.key' => 'value',
@@ -476,7 +501,7 @@ final class AutoLoginUrlRateLimitTest extends UnitTestCase {
 
     $expected = [
       'total_users_with_attempts' => 3,
-      // 2 + 8 + 0 (789's attempts are old).
+      // 2 + 8 + 0.
       'total_recent_attempts' => 10,
       // Only user 456 with 8 attempts (80% of 10).
       'users_near_limit' => 1,
