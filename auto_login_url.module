@@ -83,13 +83,13 @@ function auto_login_url_convert_text(int $uid, string $text): string {
  */
 function auto_login_url_cron(): void {
   $logger = \Drupal::logger('auto_login_url');
-  
+
   // Clean up expired auto login URLs.
   /** @var \Drupal\auto_login_url\AutoLoginUrlLogin $login_service */
   $login_service = \Drupal::service('auto_login_url.login');
-  
+
   $deleted_count = $login_service->cleanupExpiredTokens();
-  
+
   if ($deleted_count > 0) {
     $logger->info('Cleaned up @count expired auto login URLs during cron', [
       '@count' => $deleted_count,
@@ -99,9 +99,9 @@ function auto_login_url_cron(): void {
   // Clean up old rate limiting data.
   /** @var \Drupal\auto_login_url\AutoLoginUrlRateLimit $rate_limiter */
   $rate_limiter = \Drupal::service('auto_login_url.rate_limit');
-  
+
   $cleaned_rate_data = $rate_limiter->cleanupOldData();
-  
+
   if ($cleaned_rate_data > 0) {
     $logger->info('Cleaned up rate limiting data for @count users during cron', [
       '@count' => $cleaned_rate_data,
@@ -112,7 +112,7 @@ function auto_login_url_cron(): void {
   $config = \Drupal::config('auto_login_url.settings');
   if ($config->get('enable_usage_analytics')) {
     $database = \Drupal::database();
-    
+
     if ($database->schema()->tableExists('auto_login_url_usage')) {
       try {
         // Only keep analytics data for the last 6 months.
@@ -186,7 +186,7 @@ function auto_login_url_tokens(string $type, array $tokens, array $data = [], ar
           '@uid' => $user->id(),
           '@message' => $e->getMessage(),
         ]);
-        
+
         // Return a safe fallback.
         $replacements[$original] = '';
       }
@@ -204,7 +204,7 @@ function auto_login_url_tokens(string $type, array $tokens, array $data = [], ar
 function auto_login_url_preprocess_user_login_form(&$variables): void {
   // Add information about auto login URLs if user has permission.
   $current_user = \Drupal::currentUser();
-  
+
   if ($current_user->hasPermission('administer auto login url')) {
     $variables['#attached']['drupalSettings']['autoLoginUrl'] = [
       'adminConfigured' => TRUE,
@@ -241,20 +241,20 @@ function auto_login_url_mail(string $key, array &$message, array $params): void 
 function auto_login_url_user_can_create(int $uid): bool {
   /** @var \Drupal\auto_login_url\AutoLoginUrlGeneral $general_service */
   $general_service = \Drupal::service('auto_login_url.general');
-  
+
   /** @var \Drupal\auto_login_url\AutoLoginUrlRateLimit $rate_limiter */
   $rate_limiter = \Drupal::service('auto_login_url.rate_limit');
-  
+
   // Check if user exists and is valid.
   if (!$general_service->validateUserId($uid)) {
     return FALSE;
   }
-  
+
   // Check rate limiting.
   if (!$rate_limiter->checkCreationLimit($uid)) {
     return FALSE;
   }
-  
+
   return TRUE;
 }
 
@@ -312,7 +312,7 @@ function auto_login_url_get_user_stats(int $uid): array {
       '@uid' => $uid,
       '@message' => $e->getMessage(),
     ]);
-    
+
     return [
       'active_urls' => 0,
       'total_urls_created' => 0,
