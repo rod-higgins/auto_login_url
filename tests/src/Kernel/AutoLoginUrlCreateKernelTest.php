@@ -380,7 +380,7 @@ final class AutoLoginUrlCreateKernelTest extends KernelTestBase {
       $request->server->set('REMOTE_ADDR', '192.168.1.100');
     }
 
-    $url = $this->urlCreateService->create(
+    $this->urlCreateService->create(
       (int) $this->testUser->id(),
       '<front>',
       FALSE
@@ -402,9 +402,13 @@ final class AutoLoginUrlCreateKernelTest extends KernelTestBase {
    * @covers ::create
    */
   public function testCreateWithDatabaseError(): void {
-    // This test would require mocking database failures, which is complex in kernel tests.
-    // For now, we'll test that the service handles the happy path correctly.
-    $this->assertTrue(TRUE, 'Database error testing would require extensive mocking');
+    // This test would require mocking database failures, which is complex
+    // in kernel tests. For now, we'll test that the service handles the
+    // happy path correctly.
+    $this->assertTrue(
+      TRUE,
+      'Database error testing would require extensive mocking'
+    );
   }
 
   /**

@@ -295,8 +295,8 @@ final class AutoLoginUrlControllerKernelTest extends KernelTestBase {
    * @covers ::login
    */
   public function testLoginSanitizesDestination(): void {
-    // This test would require creating a URL with a potentially dangerous destination,
-    // but our create service already validates destinations.
+    // This test would require creating a URL with a potentially dangerous
+    // destination, but our create service already validates destinations.
     // Instead, we test that the controller handles edge cases gracefully.
     $url = $this->urlCreateService->create(
       (int) $this->testUser->id(),

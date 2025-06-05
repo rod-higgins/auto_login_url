@@ -27,6 +27,8 @@ final class AutoLoginUrlTokenTest extends KernelTestBase {
 
   /**
    * The token service.
+   *
+   * @var \Drupal\Core\Utility\Token
    */
   private $tokenService;
 
@@ -339,7 +341,7 @@ EOF;
     // Verify our tokens are properly structured for the token module.
     $this->assertIsArray($tokenInfo['tokens']['user']);
 
-    foreach ($tokenInfo['tokens']['user'] as $tokenName => $tokenData) {
+    foreach ($tokenInfo['tokens']['user'] as $tokenData) {
       $this->assertArrayHasKey('name', $tokenData);
       $this->assertArrayHasKey('description', $tokenData);
       $this->assertIsString($tokenData['name']);
