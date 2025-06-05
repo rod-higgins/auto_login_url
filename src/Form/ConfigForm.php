@@ -7,12 +7,10 @@ namespace Drupal\auto_login_url\Form;
 use Drupal\auto_login_url\AutoLoginUrlGeneral;
 use Drupal\auto_login_url\AutoLoginUrlRateLimit;
 use Drupal\Core\Config\ConfigFactoryInterface;
-use Drupal\Core\Database\Connection;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Drupal\Core\Logger\LoggerChannelInterface;
-use Drupal\Core\Messenger\MessengerInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -68,11 +66,6 @@ final class ConfigForm extends ConfigFormBase {
   private LoggerChannelInterface $logger;
 
   /**
-   * The database connection.
-   */
-  private Connection $database;
-
-  /**
    * Constructs a ConfigForm object.
    *
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
@@ -83,21 +76,17 @@ final class ConfigForm extends ConfigFormBase {
    *   The rate limiting service.
    * @param \Drupal\Core\Logger\LoggerChannelFactoryInterface $logger_factory
    *   The logger factory service.
-   * @param \Drupal\Core\Database\Connection $database
-   *   The database connection.
    */
   public function __construct(
     ConfigFactoryInterface $config_factory,
     AutoLoginUrlGeneral $auto_login_url_general,
     AutoLoginUrlRateLimit $rate_limiter,
     LoggerChannelFactoryInterface $logger_factory,
-    Connection $database
   ) {
     parent::__construct($config_factory);
     $this->autoLoginUrlGeneral = $auto_login_url_general;
     $this->rateLimiter = $rate_limiter;
     $this->logger = $logger_factory->get('auto_login_url');
-    $this->database = $database;
   }
 
   /**
@@ -108,8 +97,7 @@ final class ConfigForm extends ConfigFormBase {
       $container->get('config.factory'),
       $container->get('auto_login_url.general'),
       $container->get('auto_login_url.rate_limit'),
-      $container->get('logger.factory'),
-      $container->get('database')
+      $container->get('logger.factory')
     );
   }
 
@@ -232,7 +220,7 @@ final class ConfigForm extends ConfigFormBase {
       '#description' => $this->t('Maximum number of auto login URLs that can be created per user per hour. This helps prevent abuse.'),
     ];
 
-    // Add rate limiting statistics
+    // Add rate limiting statistics.
     $rate_stats = $this->rateLimiter->getStatistics();
     $form['rate_limiting']['rate_stats'] = [
       '#type' => 'details',
@@ -324,7 +312,7 @@ final class ConfigForm extends ConfigFormBase {
 
     $expiration = (int) $form_state->getValue('auto_login_url_expiration');
     if ($expiration < self::MIN_EXPIRATION || $expiration > self::MAX_EXPIRATION) {
-      $form_state->setErrorByName('auto_login_url_expiration', 
+      $form_state->setErrorByName('auto_login_url_expiration',
         $this->t('Expiration must be between @min and @max seconds.', [
           '@min' => number_format(self::MIN_EXPIRATION),
           '@max' => number_format(self::MAX_EXPIRATION),
@@ -334,7 +322,7 @@ final class ConfigForm extends ConfigFormBase {
 
     $token_length = (int) $form_state->getValue('auto_login_url_token_length');
     if ($token_length < self::MIN_TOKEN_LENGTH || $token_length > self::MAX_TOKEN_LENGTH) {
-      $form_state->setErrorByName('auto_login_url_token_length', 
+      $form_state->setErrorByName('auto_login_url_token_length',
         $this->t('Token length must be between @min and @max characters.', [
           '@min' => self::MIN_TOKEN_LENGTH,
           '@max' => self::MAX_TOKEN_LENGTH,
@@ -344,7 +332,7 @@ final class ConfigForm extends ConfigFormBase {
 
     $rate_limit = (int) $form_state->getValue('auto_login_url_max_per_hour');
     if ($rate_limit < self::MIN_RATE_LIMIT || $rate_limit > self::MAX_RATE_LIMIT) {
-      $form_state->setErrorByName('auto_login_url_max_per_hour', 
+      $form_state->setErrorByName('auto_login_url_max_per_hour',
         $this->t('Rate limit must be between @min and @max URLs per hour.', [
           '@min' => self::MIN_RATE_LIMIT,
           '@max' => self::MAX_RATE_LIMIT,
@@ -352,18 +340,19 @@ final class ConfigForm extends ConfigFormBase {
       );
     }
 
-    // Enhanced secret key validation
+    // Enhanced secret key validation.
     $secret = trim((string) $form_state->getValue('auto_login_url_secret'));
     if (!empty($secret)) {
       if (strlen($secret) < 16) {
-        $form_state->setErrorByName('auto_login_url_secret', 
+        $form_state->setErrorByName('auto_login_url_secret',
           $this->t('Secret key must be at least 16 characters long.')
         );
       }
-      
-      // Check for common weak patterns
-      if (preg_match('/^(.)\1+$/', $secret) || in_array(strtolower($secret), ['password', 'secret', '1234567890123456'])) {
-        $form_state->setErrorByName('auto_login_url_secret', 
+
+      // Check for common weak patterns.
+      $weak_patterns = ['password', 'secret', '1234567890123456'];
+      if (preg_match('/^(.)\1+$/', $secret) || in_array(strtolower($secret), $weak_patterns)) {
+        $form_state->setErrorByName('auto_login_url_secret',
           $this->t('Please choose a more secure secret key.')
         );
       }
@@ -411,7 +400,8 @@ final class ConfigForm extends ConfigFormBase {
       if ($regenerate) {
         // Generate new secret.
         $config->set('secret', '');
-        $this->autoLoginUrlGeneral->getSecret(); // This will generate a new one.
+        // This will generate a new one.
+        $this->autoLoginUrlGeneral->getSecret();
         $this->messenger()->addWarning(
           $this->t('A new secret key has been generated. All existing auto login URLs have been invalidated.')
         );
@@ -439,7 +429,7 @@ final class ConfigForm extends ConfigFormBase {
   public function cleanupExpiredUrls(array &$form, FormStateInterface $form_state): void {
     try {
       /** @var \Drupal\auto_login_url\AutoLoginUrlLogin $login_service */
-      $login_service = \Drupal::service('auto_login_url.login');
+      $login_service = $this->container()->get('auto_login_url.login');
       $deleted_count = $login_service->cleanupExpiredTokens();
 
       if ($deleted_count > 0) {
@@ -472,14 +462,16 @@ final class ConfigForm extends ConfigFormBase {
    */
   public function cleanupAnalyticsData(array &$form, FormStateInterface $form_state): void {
     try {
-      if (!$this->database->schema()->tableExists('auto_login_url_usage')) {
+      $database = $this->container()->get('database');
+
+      if (!$database->schema()->tableExists('auto_login_url_usage')) {
         $this->messenger()->addWarning($this->t('Analytics table does not exist.'));
         return;
       }
 
       // Clean up analytics data older than 6 months.
       $cutoff_time = time() - (6 * 30 * 24 * 60 * 60);
-      $deleted_count = $this->database->delete('auto_login_url_usage')
+      $deleted_count = $database->delete('auto_login_url_usage')
         ->condition('used_timestamp', $cutoff_time, '<=')
         ->execute();
 
@@ -535,16 +527,17 @@ final class ConfigForm extends ConfigFormBase {
    */
   private function getStatistics(): array {
     try {
+      $database = $this->container()->get('database');
       $config = $this->config('auto_login_url.settings');
       $expiration = (int) $config->get('expiration');
       $cutoff_time = time() - $expiration;
 
-      $total_urls = (int) $this->database->select('auto_login_url')
+      $total_urls = (int) $database->select('auto_login_url')
         ->countQuery()
         ->execute()
         ->fetchField();
 
-      $expired_urls = (int) $this->database->select('auto_login_url')
+      $expired_urls = (int) $database->select('auto_login_url')
         ->condition('timestamp', $cutoff_time, '<=')
         ->countQuery()
         ->execute()
@@ -553,8 +546,8 @@ final class ConfigForm extends ConfigFormBase {
       $active_urls = $total_urls - $expired_urls;
 
       $usage_records = 0;
-      if ($this->database->schema()->tableExists('auto_login_url_usage')) {
-        $usage_records = (int) $this->database->select('auto_login_url_usage')
+      if ($database->schema()->tableExists('auto_login_url_usage')) {
+        $usage_records = (int) $database->select('auto_login_url_usage')
           ->countQuery()
           ->execute()
           ->fetchField();
@@ -571,7 +564,7 @@ final class ConfigForm extends ConfigFormBase {
       $this->logger->error('Failed to get statistics: @message', [
         '@message' => $e->getMessage(),
       ]);
-      
+
       return [
         'total_urls' => 0,
         'active_urls' => 0,

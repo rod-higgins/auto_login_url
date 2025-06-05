@@ -14,14 +14,11 @@ use Drupal\Core\Database\Query\Insert;
 use Drupal\Core\Database\Query\Select;
 use Drupal\Core\Database\Schema\Schema;
 use Drupal\Core\Database\StatementInterface;
-use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Drupal\Core\Logger\LoggerChannelInterface;
 use Drupal\Core\Session\UserSessionInterface;
 use Drupal\Tests\UnitTestCase;
-use Drupal\user\Entity\User;
 use Drupal\user\UserAuthenticationInterface;
-use Drupal\user\UserInterface;
 
 /**
  * Unit tests for AutoLoginUrlLogin service.
@@ -67,11 +64,6 @@ final class AutoLoginUrlLoginTest extends UnitTestCase {
   private LoggerChannelInterface $logger;
 
   /**
-   * The mocked entity type manager.
-   */
-  private EntityTypeManagerInterface $entityTypeManager;
-
-  /**
    * The service under test.
    */
   private AutoLoginUrlLogin $urlLoginService;
@@ -89,7 +81,6 @@ final class AutoLoginUrlLoginTest extends UnitTestCase {
     $this->currentUser = $this->createMock(UserSessionInterface::class);
     $this->loggerFactory = $this->createMock(LoggerChannelFactoryInterface::class);
     $this->logger = $this->createMock(LoggerChannelInterface::class);
-    $this->entityTypeManager = $this->createMock(EntityTypeManagerInterface::class);
 
     $this->loggerFactory->method('get')
       ->with('auto_login_url')
@@ -101,8 +92,7 @@ final class AutoLoginUrlLoginTest extends UnitTestCase {
       $this->autoLoginUrlGeneral,
       $this->userAuthentication,
       $this->currentUser,
-      $this->loggerFactory,
-      $this->entityTypeManager
+      $this->loggerFactory
     );
   }
 
@@ -125,7 +115,7 @@ final class AutoLoginUrlLoginTest extends UnitTestCase {
     $this->autoLoginUrlGeneral->method('validateUserId')
       ->with(123)
       ->willReturn(TRUE);
-    
+
     $this->autoLoginUrlGeneral->method('validateHashFormat')
       ->with('invalid hash')
       ->willReturn(FALSE);
@@ -148,10 +138,10 @@ final class AutoLoginUrlLoginTest extends UnitTestCase {
     $select->method('fields')->willReturnSelf();
     $select->method('condition')->willReturnSelf();
     $select->method('range')->willReturnSelf();
-    
+
     $statement = $this->createMock(StatementInterface::class);
     $statement->method('fetchAssoc')->willReturn(FALSE);
-    
+
     $select->method('execute')->willReturn($statement);
     $this->connection->method('select')->willReturn($select);
 
@@ -178,12 +168,12 @@ final class AutoLoginUrlLoginTest extends UnitTestCase {
       ->willReturn($config);
 
     // Mock database query that returns an expired token.
-    $expiredTimestamp = time() - 7200; // 2 hours ago
-    $loginData = [
+    $expired_timestamp = time() - 7200;
+    $login_data = [
       'id' => '1',
       'uid' => '123',
       'destination' => 'user/123',
-      'timestamp' => (string) $expiredTimestamp,
+      'timestamp' => (string) $expired_timestamp,
       'ip_address' => '192.168.1.1',
     ];
 
@@ -191,20 +181,20 @@ final class AutoLoginUrlLoginTest extends UnitTestCase {
     $select->method('fields')->willReturnSelf();
     $select->method('condition')->willReturnSelf();
     $select->method('range')->willReturnSelf();
-    
+
     $statement = $this->createMock(StatementInterface::class);
-    $statement->method('fetchAssoc')->willReturn($loginData);
-    
+    $statement->method('fetchAssoc')->willReturn($login_data);
+
     $select->method('execute')->willReturn($statement);
     $this->connection->method('select')->willReturn($select);
 
     // Mock hash verification.
-    $hashSelect = $this->createMock(Select::class);
-    $hashSelect->method('fields')->willReturnSelf();
-    $hashSelect->method('condition')->willReturnSelf();
-    $hashStatement = $this->createMock(StatementInterface::class);
-    $hashStatement->method('fetchField')->willReturn('matching-hash');
-    $hashSelect->method('execute')->willReturn($hashStatement);
+    $hash_select = $this->createMock(Select::class);
+    $hash_select->method('fields')->willReturnSelf();
+    $hash_select->method('condition')->willReturnSelf();
+    $hash_statement = $this->createMock(StatementInterface::class);
+    $hash_statement->method('fetchField')->willReturn('matching-hash');
+    $hash_select->method('execute')->willReturn($hash_statement);
 
     // Mock delete operation for expired token.
     $delete = $this->createMock(Delete::class);
@@ -223,27 +213,21 @@ final class AutoLoginUrlLoginTest extends UnitTestCase {
     $this->setupSuccessfulValidation();
 
     // Mock valid, non-expired token.
-    $validTimestamp = time() - 1800; // 30 minutes ago
-    $loginData = [
+    $valid_timestamp = time() - 1800;
+    $login_data = [
       'id' => '1',
       'uid' => '123',
       'destination' => 'user/123',
-      'timestamp' => (string) $validTimestamp,
+      'timestamp' => (string) $valid_timestamp,
       'ip_address' => '192.168.1.1',
     ];
 
-    $this->setupDatabaseMocks($loginData);
+    $this->setupDatabaseMocks($login_data);
 
     // Mock blocked user.
-    $user = $this->createMock(UserInterface::class);
-    $user->method('isBlocked')->willReturn(TRUE);
-
-    // Mock User::load (this is tricky as it's static).
-    // We'll test this scenario in kernel tests instead.
-    
-    // For this unit test, we'll test the case where the user is not found.
+    // Note: This would be tested in kernel tests since User::load is static.
     $result = $this->urlLoginService->login(123, 'valid-hash');
-    // Result depends on how User::load behaves - we'll test this in integration tests.
+    // Result depends on how User::load behaves.
     $this->assertIsBool($result);
   }
 
@@ -263,7 +247,7 @@ final class AutoLoginUrlLoginTest extends UnitTestCase {
     ]);
     $this->configFactory->method('get')->willReturn($config);
 
-    $loginData = [
+    $login_data = [
       'id' => '1',
       'uid' => '123',
       'destination' => 'user/123',
@@ -271,7 +255,7 @@ final class AutoLoginUrlLoginTest extends UnitTestCase {
       'ip_address' => '192.168.1.1',
     ];
 
-    $this->setupDatabaseMocks($loginData);
+    $this->setupDatabaseMocks($login_data);
 
     // Mock different current IP.
     $this->autoLoginUrlGeneral->method('getClientIp')
@@ -297,7 +281,7 @@ final class AutoLoginUrlLoginTest extends UnitTestCase {
     ]);
     $this->configFactory->method('get')->willReturn($config);
 
-    $loginData = [
+    $login_data = [
       'id' => '1',
       'uid' => '123',
       'destination' => 'user/123',
@@ -305,14 +289,16 @@ final class AutoLoginUrlLoginTest extends UnitTestCase {
       'ip_address' => '192.168.1.1',
     ];
 
-    $this->setupDatabaseMocks($loginData);
+    $this->setupDatabaseMocks($login_data);
 
     // Mock same IP.
     $this->autoLoginUrlGeneral->method('getClientIp')
       ->willReturn('192.168.1.1');
 
-    // Note: Full login test requires mocking User::load which is complex in unit tests.
-    // We'll focus on testing the IP validation logic here.
+    /*
+     * Note: Full login test requires mocking User::load which is complex
+     * in unit tests. We'll focus on testing the IP validation logic here.
+     */
     $result = $this->urlLoginService->login(123, 'valid-hash');
     $this->assertIsBool($result);
   }
@@ -333,7 +319,7 @@ final class AutoLoginUrlLoginTest extends UnitTestCase {
     ]);
     $this->configFactory->method('get')->willReturn($config);
 
-    $loginData = [
+    $login_data = [
       'id' => '1',
       'uid' => '123',
       'destination' => 'user/123',
@@ -341,7 +327,7 @@ final class AutoLoginUrlLoginTest extends UnitTestCase {
       'ip_address' => '192.168.1.1',
     ];
 
-    $this->setupDatabaseMocks($loginData);
+    $this->setupDatabaseMocks($login_data);
 
     // Mock analytics table exists.
     $schema = $this->createMock(Schema::class);
@@ -351,13 +337,13 @@ final class AutoLoginUrlLoginTest extends UnitTestCase {
     $this->connection->method('schema')->willReturn($schema);
 
     // Mock analytics insert.
-    $analyticsInsert = $this->createMock(Insert::class);
-    $analyticsInsert->method('fields')->willReturnSelf();
-    $analyticsInsert->method('execute')->willReturn(1);
+    $analytics_insert = $this->createMock(Insert::class);
+    $analytics_insert->method('fields')->willReturnSelf();
+    $analytics_insert->method('execute')->willReturn(1);
 
     $this->connection->expects($this->atLeastOnce())
       ->method('insert')
-      ->willReturn($analyticsInsert);
+      ->willReturn($analytics_insert);
 
     $result = $this->urlLoginService->login(123, 'valid-hash');
     $this->assertIsBool($result);
@@ -379,7 +365,7 @@ final class AutoLoginUrlLoginTest extends UnitTestCase {
     ]);
     $this->configFactory->method('get')->willReturn($config);
 
-    $loginData = [
+    $login_data = [
       'id' => '1',
       'uid' => '123',
       'destination' => 'user/123',
@@ -387,7 +373,7 @@ final class AutoLoginUrlLoginTest extends UnitTestCase {
       'ip_address' => '192.168.1.1',
     ];
 
-    $this->setupDatabaseMocks($loginData);
+    $this->setupDatabaseMocks($login_data);
 
     // Mock delete operation.
     $delete = $this->createMock(Delete::class);
@@ -415,7 +401,7 @@ final class AutoLoginUrlLoginTest extends UnitTestCase {
     // Mock delete operation.
     $delete = $this->createMock(Delete::class);
     $delete->method('condition')->willReturnSelf();
-    $delete->method('execute')->willReturn(5); // 5 deleted
+    $delete->method('execute')->willReturn(5);
     $this->connection->method('delete')->willReturn($delete);
 
     $result = $this->urlLoginService->cleanupExpiredTokens();
@@ -434,8 +420,7 @@ final class AutoLoginUrlLoginTest extends UnitTestCase {
     // Mock delete operation that throws exception.
     $delete = $this->createMock(Delete::class);
     $delete->method('condition')->willReturnSelf();
-    $delete->method('execute')
-      ->willThrowException(new \Exception('Database error'));
+    $delete->method('execute')->willThrowException(new \Exception('Database error'));
     $this->connection->method('delete')->willReturn($delete);
 
     $result = $this->urlLoginService->cleanupExpiredTokens();
@@ -456,7 +441,7 @@ final class AutoLoginUrlLoginTest extends UnitTestCase {
     foreach ($destinations as $input => $expected) {
       $this->setupSuccessfulValidation();
 
-      $loginData = [
+      $login_data = [
         'id' => '1',
         'uid' => '123',
         'destination' => $input,
@@ -464,10 +449,12 @@ final class AutoLoginUrlLoginTest extends UnitTestCase {
         'ip_address' => '192.168.1.1',
       ];
 
-      $this->setupDatabaseMocks($loginData);
+      $this->setupDatabaseMocks($login_data);
 
-      // The actual destination generation logic is complex and involves
-      // Drupal's URL system, so we'll test this in kernel/integration tests.
+      /*
+       * The actual destination generation logic is complex and involves
+       * Drupal's URL system, so we'll test this in kernel/integration tests.
+       */
       $result = $this->urlLoginService->login(123, 'valid-hash');
       $this->assertIsBool($result);
     }
@@ -487,8 +474,7 @@ final class AutoLoginUrlLoginTest extends UnitTestCase {
     $select->method('fields')->willReturnSelf();
     $select->method('condition')->willReturnSelf();
     $select->method('range')->willReturnSelf();
-    $select->method('execute')
-      ->willThrowException(new \Exception('Database error'));
+    $select->method('execute')->willThrowException(new \Exception('Database error'));
     $this->connection->method('select')->willReturn($select);
 
     $result = $this->urlLoginService->login(123, 'valid-hash');
@@ -509,28 +495,28 @@ final class AutoLoginUrlLoginTest extends UnitTestCase {
   /**
    * Sets up database mocks for login data retrieval.
    */
-  private function setupDatabaseMocks(array $loginData): void {
+  private function setupDatabaseMocks(array $login_data): void {
     // Mock main query.
     $select = $this->createMock(Select::class);
     $select->method('fields')->willReturnSelf();
     $select->method('condition')->willReturnSelf();
     $select->method('range')->willReturnSelf();
-    
+
     $statement = $this->createMock(StatementInterface::class);
-    $statement->method('fetchAssoc')->willReturn($loginData);
-    
+    $statement->method('fetchAssoc')->willReturn($login_data);
+
     $select->method('execute')->willReturn($statement);
 
     // Mock hash verification query.
-    $hashSelect = $this->createMock(Select::class);
-    $hashSelect->method('fields')->willReturnSelf();
-    $hashSelect->method('condition')->willReturnSelf();
-    $hashStatement = $this->createMock(StatementInterface::class);
-    $hashStatement->method('fetchField')->willReturn('expected-hash');
-    $hashSelect->method('execute')->willReturn($hashStatement);
+    $hash_select = $this->createMock(Select::class);
+    $hash_select->method('fields')->willReturnSelf();
+    $hash_select->method('condition')->willReturnSelf();
+    $hash_statement = $this->createMock(StatementInterface::class);
+    $hash_statement->method('fetchField')->willReturn('expected-hash');
+    $hash_select->method('execute')->willReturn($hash_statement);
 
     $this->connection->method('select')
-      ->willReturnOnConsecutiveCalls($select, $hashSelect);
+      ->willReturnOnConsecutiveCalls($select, $hash_select);
   }
 
   /**
@@ -539,7 +525,7 @@ final class AutoLoginUrlLoginTest extends UnitTestCase {
   public function testHashTimingSafeComparison(): void {
     $this->setupSuccessfulValidation();
 
-    $loginData = [
+    $login_data = [
       'id' => '1',
       'uid' => '123',
       'destination' => 'user/123',
@@ -552,22 +538,22 @@ final class AutoLoginUrlLoginTest extends UnitTestCase {
     $select->method('fields')->willReturnSelf();
     $select->method('condition')->willReturnSelf();
     $select->method('range')->willReturnSelf();
-    
+
     $statement = $this->createMock(StatementInterface::class);
-    $statement->method('fetchAssoc')->willReturn($loginData);
-    
+    $statement->method('fetchAssoc')->willReturn($login_data);
+
     $select->method('execute')->willReturn($statement);
 
     // Mock hash verification that returns different hash.
-    $hashSelect = $this->createMock(Select::class);
-    $hashSelect->method('fields')->willReturnSelf();
-    $hashSelect->method('condition')->willReturnSelf();
-    $hashStatement = $this->createMock(StatementInterface::class);
-    $hashStatement->method('fetchField')->willReturn('different-hash');
-    $hashSelect->method('execute')->willReturn($hashStatement);
+    $hash_select = $this->createMock(Select::class);
+    $hash_select->method('fields')->willReturnSelf();
+    $hash_select->method('condition')->willReturnSelf();
+    $hash_statement = $this->createMock(StatementInterface::class);
+    $hash_statement->method('fetchField')->willReturn('different-hash');
+    $hash_select->method('execute')->willReturn($hash_statement);
 
     $this->connection->method('select')
-      ->willReturnOnConsecutiveCalls($select, $hashSelect);
+      ->willReturnOnConsecutiveCalls($select, $hash_select);
 
     $result = $this->urlLoginService->login(123, 'valid-hash');
     $this->assertFalse($result);
@@ -579,7 +565,7 @@ final class AutoLoginUrlLoginTest extends UnitTestCase {
   public function testLoginWithMissingStoredHash(): void {
     $this->setupSuccessfulValidation();
 
-    $loginData = [
+    $login_data = [
       'id' => '1',
       'uid' => '123',
       'destination' => 'user/123',
@@ -592,22 +578,22 @@ final class AutoLoginUrlLoginTest extends UnitTestCase {
     $select->method('fields')->willReturnSelf();
     $select->method('condition')->willReturnSelf();
     $select->method('range')->willReturnSelf();
-    
+
     $statement = $this->createMock(StatementInterface::class);
-    $statement->method('fetchAssoc')->willReturn($loginData);
-    
+    $statement->method('fetchAssoc')->willReturn($login_data);
+
     $select->method('execute')->willReturn($statement);
 
     // Mock hash verification that returns FALSE.
-    $hashSelect = $this->createMock(Select::class);
-    $hashSelect->method('fields')->willReturnSelf();
-    $hashSelect->method('condition')->willReturnSelf();
-    $hashStatement = $this->createMock(StatementInterface::class);
-    $hashStatement->method('fetchField')->willReturn(FALSE);
-    $hashSelect->method('execute')->willReturn($hashStatement);
+    $hash_select = $this->createMock(Select::class);
+    $hash_select->method('fields')->willReturnSelf();
+    $hash_select->method('condition')->willReturnSelf();
+    $hash_statement = $this->createMock(StatementInterface::class);
+    $hash_statement->method('fetchField')->willReturn(FALSE);
+    $hash_select->method('execute')->willReturn($hash_statement);
 
     $this->connection->method('select')
-      ->willReturnOnConsecutiveCalls($select, $hashSelect);
+      ->willReturnOnConsecutiveCalls($select, $hash_select);
 
     $result = $this->urlLoginService->login(123, 'valid-hash');
     $this->assertFalse($result);

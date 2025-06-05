@@ -54,7 +54,7 @@ final class AutoLoginUrlIntegrationTest extends BrowserTestBase {
 
     // Create test user.
     $this->testUser = $this->createUser(['use auto login url']);
-    
+
     // Create admin user.
     $this->adminUser = $this->createUser([
       'administer auto login url',
@@ -71,10 +71,11 @@ final class AutoLoginUrlIntegrationTest extends BrowserTestBase {
     $this->drupalLogin($this->adminUser);
     $this->drupalGet('admin/people/autologinurl');
     $this->assertSession()->statusCodeEquals(200);
-    
+
     // Update configuration.
     $edit = [
-      'auto_login_url_expiration' => 3600, // 1 hour
+      // 1 hour.
+      'auto_login_url_expiration' => 3600,
       'auto_login_url_token_length' => 32,
       'auto_login_url_delete_on_use' => FALSE,
       'auto_login_url_max_per_hour' => 5,
@@ -89,16 +90,16 @@ final class AutoLoginUrlIntegrationTest extends BrowserTestBase {
       $destination,
       TRUE
     );
-    
+
     $this->assertNotEmpty($url);
     $this->assertStringContains('autologinurl', $url);
 
     // Step 3: Log out admin and test the auto login URL.
     $this->drupalLogout();
-    
+
     // Step 4: Access the auto login URL.
     $this->drupalGet($url);
-    
+
     // Step 5: Verify successful login and redirection.
     $this->assertSession()->statusCodeEquals(200);
     $this->assertSession()->pageTextContains($this->testUser->getAccountName());
@@ -115,33 +116,33 @@ final class AutoLoginUrlIntegrationTest extends BrowserTestBase {
    */
   public function testAutoLoginTextConversion(): void {
     global $base_root;
-    
-    $originalText = sprintf(
+
+    $original_text = sprintf(
       'Please visit %s/user/%d to view your profile and %s/admin/content for content management.',
       $base_root,
       $this->testUser->id(),
       $base_root
     );
 
-    $convertedText = auto_login_url_convert_text(
+    $converted_text = auto_login_url_convert_text(
       (int) $this->testUser->id(),
-      $originalText
+      $original_text
     );
 
     // Verify text was converted.
-    $this->assertNotEquals($originalText, $convertedText);
-    $this->assertStringContains('autologinurl', $convertedText);
+    $this->assertNotEquals($original_text, $converted_text);
+    $this->assertStringContains('autologinurl', $converted_text);
 
     // Extract auto login URLs from converted text.
-    preg_match_all('/https?:\/\/[^\s]+autologinurl[^\s]+/', $convertedText, $matches);
-    $autoLoginUrls = $matches[0];
-    
-    $this->assertGreaterThan(0, count($autoLoginUrls));
+    preg_match_all('/https?:\/\/[^\s]+autologinurl[^\s]+/', $converted_text, $matches);
+    $auto_login_urls = $matches[0];
+
+    $this->assertGreaterThan(0, count($auto_login_urls));
 
     // Test each converted URL.
-    foreach ($autoLoginUrls as $autoLoginUrl) {
+    foreach ($auto_login_urls as $auto_login_url) {
       $this->drupalLogout();
-      $this->drupalGet($autoLoginUrl);
+      $this->drupalGet($auto_login_url);
       $this->assertSession()->statusCodeEquals(200);
       $this->assertSession()->pageTextContains($this->testUser->getAccountName());
     }
@@ -154,10 +155,10 @@ final class AutoLoginUrlIntegrationTest extends BrowserTestBase {
     // Configure low rate limit.
     $this->drupalLogin($this->adminUser);
     $this->drupalGet('admin/people/autologinurl');
-    
+
     $edit = ['auto_login_url_max_per_hour' => 2];
     $this->submitForm($edit, 'Save configuration');
-    
+
     $this->drupalLogout();
 
     // Create URLs up to the limit.
@@ -191,9 +192,9 @@ final class AutoLoginUrlIntegrationTest extends BrowserTestBase {
     // Verify first two URLs still work.
     $this->drupalGet($url1);
     $this->assertSession()->statusCodeEquals(200);
-    
+
     $this->drupalLogout();
-    
+
     $this->drupalGet($url2);
     $this->assertSession()->statusCodeEquals(200);
   }
@@ -203,6 +204,7 @@ final class AutoLoginUrlIntegrationTest extends BrowserTestBase {
    */
   public function testFloodProtectionIntegration(): void {
     // Configure aggressive flood protection.
+    $config = $this->config('user.flood');
     $this->container->get('config.factory')
       ->getEditable('user.flood')
       ->set('ip_limit', 2)
@@ -216,14 +218,14 @@ final class AutoLoginUrlIntegrationTest extends BrowserTestBase {
     }
 
     // Now create a valid URL.
-    $validUrl = auto_login_url_create(
+    $valid_url = auto_login_url_create(
       (int) $this->testUser->id(),
       '<front>',
       TRUE
     );
 
     // Access should be blocked due to flood protection.
-    $this->drupalGet($validUrl);
+    $this->drupalGet($valid_url);
     $this->assertSession()->statusCodeEquals(403);
     $this->assertSession()->pageTextContains('too many failed login attempts');
   }
@@ -235,10 +237,11 @@ final class AutoLoginUrlIntegrationTest extends BrowserTestBase {
     // Set very short expiration.
     $this->drupalLogin($this->adminUser);
     $this->drupalGet('admin/people/autologinurl');
-    
-    $edit = ['auto_login_url_expiration' => 2]; // 2 seconds
+
+    // 2 seconds.
+    $edit = ['auto_login_url_expiration' => 2];
     $this->submitForm($edit, 'Save configuration');
-    
+
     $this->drupalLogout();
 
     // Create URL.
@@ -251,7 +254,7 @@ final class AutoLoginUrlIntegrationTest extends BrowserTestBase {
     // Immediate access should work.
     $this->drupalGet($url);
     $this->assertSession()->statusCodeEquals(200);
-    
+
     $this->drupalLogout();
 
     // Wait for expiration.
@@ -269,10 +272,10 @@ final class AutoLoginUrlIntegrationTest extends BrowserTestBase {
     // Configure single-use URLs.
     $this->drupalLogin($this->adminUser);
     $this->drupalGet('admin/people/autologinurl');
-    
+
     $edit = ['auto_login_url_delete_on_use' => TRUE];
     $this->submitForm($edit, 'Save configuration');
-    
+
     $this->drupalLogout();
 
     // Create URL.
@@ -285,7 +288,7 @@ final class AutoLoginUrlIntegrationTest extends BrowserTestBase {
     // First access should work.
     $this->drupalGet($url);
     $this->assertSession()->statusCodeEquals(200);
-    
+
     $this->drupalLogout();
 
     // Second access should fail.
@@ -300,10 +303,10 @@ final class AutoLoginUrlIntegrationTest extends BrowserTestBase {
     // Enable analytics.
     $this->drupalLogin($this->adminUser);
     $this->drupalGet('admin/people/autologinurl');
-    
+
     $edit = ['auto_login_url_enable_analytics' => TRUE];
     $this->submitForm($edit, 'Save configuration');
-    
+
     $this->drupalLogout();
 
     // Create and use multiple URLs.
@@ -313,7 +316,7 @@ final class AutoLoginUrlIntegrationTest extends BrowserTestBase {
         'destination' . $i,
         TRUE
       );
-      
+
       $this->drupalGet($url);
       $this->assertSession()->statusCodeEquals(200);
       $this->drupalLogout();
@@ -352,9 +355,10 @@ final class AutoLoginUrlIntegrationTest extends BrowserTestBase {
 
     // Mark some as expired.
     $database = $this->container->get('database');
-    $expiredTime = time() - 7200; // 2 hours ago
+    // 2 hours ago.
+    $expired_time = time() - 7200;
     $database->update('auto_login_url')
-      ->fields(['timestamp' => $expiredTime])
+      ->fields(['timestamp' => $expired_time])
       ->range(0, 3)
       ->execute();
 
@@ -364,11 +368,11 @@ final class AutoLoginUrlIntegrationTest extends BrowserTestBase {
     $this->assertSession()->pageTextContains('Cleaned up 3 expired auto login URLs');
 
     // Verify cleanup worked.
-    $remainingCount = $database->select('auto_login_url')
+    $remaining_count = $database->select('auto_login_url')
       ->countQuery()
       ->execute()
       ->fetchField();
-    $this->assertEquals(2, $remainingCount);
+    $this->assertEquals(2, $remaining_count);
   }
 
   /**
@@ -376,7 +380,7 @@ final class AutoLoginUrlIntegrationTest extends BrowserTestBase {
    */
   public function testHealthCheckIntegration(): void {
     $this->drupalLogin($this->adminUser);
-    
+
     $this->drupalGet('admin/reports/auto-login-url/health');
     $this->assertSession()->statusCodeEquals(200);
     $this->assertSession()->pageTextContains('Auto Login URL service is operational');
@@ -390,14 +394,16 @@ final class AutoLoginUrlIntegrationTest extends BrowserTestBase {
     $this->drupalGet('admin/people/autologinurl');
 
     // Test invalid expiration.
-    $edit = ['auto_login_url_expiration' => 100]; // Too short
+    // Too short.
+    $edit = ['auto_login_url_expiration' => 100];
     $this->submitForm($edit, 'Save configuration');
     $this->assertSession()->pageTextContains('Expiration must be between');
 
     // Test invalid token length.
     $edit = [
       'auto_login_url_expiration' => 3600,
-      'auto_login_url_token_length' => 5, // Too short
+      // Too short.
+      'auto_login_url_token_length' => 5,
     ];
     $this->submitForm($edit, 'Save configuration');
     $this->assertSession()->pageTextContains('Token length must be between');
@@ -406,7 +412,8 @@ final class AutoLoginUrlIntegrationTest extends BrowserTestBase {
     $edit = [
       'auto_login_url_expiration' => 3600,
       'auto_login_url_token_length' => 32,
-      'auto_login_url_max_per_hour' => 200, // Too high
+      // Too high.
+      'auto_login_url_max_per_hour' => 200,
     ];
     $this->submitForm($edit, 'Save configuration');
     $this->assertSession()->pageTextContains('Rate limit must be between');
@@ -462,16 +469,16 @@ final class AutoLoginUrlIntegrationTest extends BrowserTestBase {
    */
   public function testPermissionsIntegration(): void {
     // Create user without permissions.
-    $restrictedUser = $this->createUser([]);
+    $restricted_user = $this->createUser([]);
 
     // Try to access configuration page.
-    $this->drupalLogin($restrictedUser);
+    $this->drupalLogin($restricted_user);
     $this->drupalGet('admin/people/autologinurl');
     $this->assertSession()->statusCodeEquals(403);
 
     // Try to use auto login URL.
     $this->drupalLogout();
-    $this->drupalGet('autologinurl/' . $restrictedUser->id() . '/test-hash');
+    $this->drupalGet('autologinurl/' . $restricted_user->id() . '/test-hash');
     $this->assertSession()->statusCodeEquals(403);
   }
 
@@ -489,9 +496,10 @@ final class AutoLoginUrlIntegrationTest extends BrowserTestBase {
     }
 
     $database = $this->container->get('database');
-    $expiredTime = time() - 7200; // 2 hours ago
+    // 2 hours ago.
+    $expired_time = time() - 7200;
     $database->update('auto_login_url')
-      ->fields(['timestamp' => $expiredTime])
+      ->fields(['timestamp' => $expired_time])
       ->execute();
 
     // Run cron.
@@ -512,13 +520,16 @@ final class AutoLoginUrlIntegrationTest extends BrowserTestBase {
    */
   public function testErrorHandlingIntegration(): void {
     // Test database error scenarios by creating malformed requests.
-    $malformedUrls = [
-      'autologinurl/abc/hash',     // Non-numeric UID
-      'autologinurl/-1/hash',      // Negative UID
-      'autologinurl/0/hash',       // Zero UID
+    $malformed_urls = [
+      // Non-numeric UID.
+      'autologinurl/abc/hash',
+      // Negative UID.
+      'autologinurl/-1/hash',
+      // Zero UID.
+      'autologinurl/0/hash',
     ];
 
-    foreach ($malformedUrls as $url) {
+    foreach ($malformed_urls as $url) {
       $this->drupalGet($url);
       $this->assertSession()->statusCodeEquals(403);
     }
@@ -554,13 +565,15 @@ final class AutoLoginUrlIntegrationTest extends BrowserTestBase {
       $this->drupalLogout();
     }
 
-    // Test URLs don't work across users (extract hash from one user's URL
-    // and try to use it with another user's ID).
+    /*
+     * Test URLs don't work across users (extract hash from one user's URL
+     * and try to use it with another user's ID).
+     */
     preg_match('/autologinurl\/\d+\/([^\/]+)/', $urls[0][1], $matches);
     $hash = $matches[1];
-    
-    $wrongUserUrl = 'autologinurl/' . $users[1]->id() . '/' . $hash;
-    $this->drupalGet($wrongUserUrl);
+
+    $wrong_user_url = 'autologinurl/' . $users[1]->id() . '/' . $hash;
+    $this->drupalGet($wrong_user_url);
     $this->assertSession()->statusCodeEquals(403);
   }
 

@@ -7,12 +7,12 @@ namespace Drupal\auto_login_url;
 use Drupal\Component\Utility\Crypt;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Database\Connection;
-use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Drupal\Core\Logger\LoggerChannelInterface;
 use Drupal\Core\Session\UserSessionInterface;
 use Drupal\Core\Site\Settings;
 use Drupal\Core\Url;
+use Drupal\user\Entity\User;
 use Drupal\user\UserAuthenticationInterface;
 use Drupal\user\UserInterface;
 
@@ -54,11 +54,6 @@ final class AutoLoginUrlLogin {
   private LoggerChannelInterface $logger;
 
   /**
-   * The entity type manager.
-   */
-  private EntityTypeManagerInterface $entityTypeManager;
-
-  /**
    * Constructs an AutoLoginUrlLogin object.
    *
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
@@ -73,8 +68,6 @@ final class AutoLoginUrlLogin {
    *   The current user session.
    * @param \Drupal\Core\Logger\LoggerChannelFactoryInterface $logger_factory
    *   The logger factory service.
-   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
-   *   The entity type manager.
    */
   public function __construct(
     ConfigFactoryInterface $config_factory,
@@ -83,7 +76,6 @@ final class AutoLoginUrlLogin {
     UserAuthenticationInterface $user_authentication,
     UserSessionInterface $current_user,
     LoggerChannelFactoryInterface $logger_factory,
-    EntityTypeManagerInterface $entity_type_manager
   ) {
     $this->configFactory = $config_factory;
     $this->connection = $connection;
@@ -91,7 +83,6 @@ final class AutoLoginUrlLogin {
     $this->userAuthentication = $user_authentication;
     $this->currentUser = $current_user;
     $this->logger = $logger_factory->get('auto_login_url');
-    $this->entityTypeManager = $entity_type_manager;
   }
 
   /**
@@ -194,7 +185,7 @@ final class AutoLoginUrlLogin {
    */
   private function validateAndRetrieveLoginData(int $uid, string $hash): array|false {
     $start_time = microtime(TRUE);
-    
+
     try {
       // Generate the key for hash verification.
       $auto_login_url_secret = $this->autoLoginUrlGeneral->getSecret();
@@ -214,7 +205,7 @@ final class AutoLoginUrlLogin {
         ->fetchAssoc();
 
       $processing_time = round((microtime(TRUE) - $start_time) * 1000, 2);
-      
+
       if (empty($result)) {
         $this->logger->warning('No matching auto login record found for user @uid (processing time: @time ms)', [
           '@uid' => $uid,
@@ -223,7 +214,7 @@ final class AutoLoginUrlLogin {
         return FALSE;
       }
 
-      // Enhanced security: Check if request IP matches creation IP (optional)
+      // Enhanced security: Check if request IP matches creation IP (optional).
       $current_ip = $this->autoLoginUrlGeneral->getClientIp();
       if (!empty($result['ip_address']) && $result['ip_address'] !== $current_ip) {
         $this->logger->security('Auto login IP mismatch for user @uid: created from @create_ip, used from @current_ip', [
@@ -231,7 +222,7 @@ final class AutoLoginUrlLogin {
           '@create_ip' => $result['ip_address'],
           '@current_ip' => $current_ip,
         ]);
-        // Note: Don't fail here as users may legitimately change networks
+        // Note: Don't fail here as users may legitimately change networks.
       }
 
       // Use timing-safe comparison for additional security.
@@ -270,14 +261,14 @@ final class AutoLoginUrlLogin {
    */
   private function validateIpAddress(array $login_data): bool {
     $config = $this->configFactory->get('auto_login_url.settings');
-    
+
     // Skip IP validation if not enabled or no IP stored.
     if (!$config->get('validate_ip_address') || empty($login_data['ip_address'])) {
       return TRUE;
     }
 
     $current_ip = $this->autoLoginUrlGeneral->getClientIp();
-    
+
     if ($login_data['ip_address'] !== $current_ip) {
       $this->logger->warning('IP address validation failed for auto login. Expected: @expected, Got: @actual, User: @uid', [
         '@expected' => $login_data['ip_address'],
@@ -298,7 +289,7 @@ final class AutoLoginUrlLogin {
    */
   private function logUrlUsage(array $login_data): void {
     $config = $this->configFactory->get('auto_login_url.settings');
-    
+
     // Skip logging if analytics not enabled.
     if (!$config->get('enable_usage_analytics')) {
       return;
@@ -365,7 +356,7 @@ final class AutoLoginUrlLogin {
   private function isTokenExpired(string $timestamp): bool {
     $config = $this->configFactory->get('auto_login_url.settings');
     $expiration = (int) $config->get('expiration');
-    
+
     return (time() - (int) $timestamp) > $expiration;
   }
 
@@ -379,34 +370,24 @@ final class AutoLoginUrlLogin {
    *   The user account or FALSE on failure.
    */
   private function loadAndValidateUser(int $uid): UserInterface|false {
-    try {
-      $user_storage = $this->entityTypeManager->getStorage('user');
-      $account = $user_storage->load($uid);
-      
-      if (!$account instanceof UserInterface) {
-        $this->logger->warning('Failed to load user account @uid', ['@uid' => $uid]);
-        return FALSE;
-      }
+    $account = User::load($uid);
 
-      if ($account->isBlocked()) {
-        $this->logger->warning('Attempted auto login for blocked user @uid', ['@uid' => $uid]);
-        return FALSE;
-      }
-
-      if (!$account->isActive()) {
-        $this->logger->warning('Attempted auto login for inactive user @uid', ['@uid' => $uid]);
-        return FALSE;
-      }
-
-      return $account;
-    }
-    catch (\Exception $e) {
-      $this->logger->error('Error loading user @uid: @message', [
-        '@uid' => $uid,
-        '@message' => $e->getMessage(),
-      ]);
+    if (!$account instanceof UserInterface) {
+      $this->logger->warning('Failed to load user account @uid', ['@uid' => $uid]);
       return FALSE;
     }
+
+    if ($account->isBlocked()) {
+      $this->logger->warning('Attempted auto login for blocked user @uid', ['@uid' => $uid]);
+      return FALSE;
+    }
+
+    if (!$account->isActive()) {
+      $this->logger->warning('Attempted auto login for inactive user @uid', ['@uid' => $uid]);
+      return FALSE;
+    }
+
+    return $account;
   }
 
   /**
@@ -432,7 +413,7 @@ final class AutoLoginUrlLogin {
    */
   private function handlePostLoginCleanup(string $record_id): void {
     $config = $this->configFactory->get('auto_login_url.settings');
-    
+
     // Delete the login record if configured to do so.
     if ($config->get('delete')) {
       $this->deleteLoginRecord($record_id);
@@ -470,7 +451,7 @@ final class AutoLoginUrlLogin {
    */
   private function generateDestinationUrl(string $destination): string {
     $destination = urldecode($destination);
-    
+
     // Check if it's already an absolute URL.
     if (str_starts_with($destination, 'http://') || str_starts_with($destination, 'https://')) {
       return $destination;
@@ -487,7 +468,7 @@ final class AutoLoginUrlLogin {
         '@dest' => $destination,
         '@message' => $e->getMessage(),
       ]);
-      
+
       // Fallback to front page.
       return Url::fromRoute('<front>', [], ['absolute' => TRUE])->toString();
     }

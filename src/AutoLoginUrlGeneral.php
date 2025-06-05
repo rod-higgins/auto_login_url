@@ -10,6 +10,7 @@ use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Flood\FloodInterface;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Drupal\Core\Logger\LoggerChannelInterface;
+use Drupal\user\Entity\User;
 use Drupal\user\UserInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Request;
@@ -75,7 +76,7 @@ final class AutoLoginUrlGeneral {
     FloodInterface $flood,
     LoggerChannelFactoryInterface $logger_factory,
     RequestStack $request_stack,
-    EntityTypeManagerInterface $entity_type_manager
+    EntityTypeManagerInterface $entity_type_manager,
   ) {
     $this->configFactory = $config_factory;
     $this->flood = $flood;
@@ -141,7 +142,7 @@ final class AutoLoginUrlGeneral {
     // Create secret if it doesn't exist.
     if (empty($secret)) {
       $secret = $this->generateSecureSecret();
-      
+
       $this->configFactory->getEditable('auto_login_url.settings')
         ->set('secret', $secret)
         ->save();
@@ -180,7 +181,7 @@ final class AutoLoginUrlGeneral {
       return '';
     }
 
-    $user = $user_storage->load($uid);
+    $user = User::load($uid);
     if (!$user instanceof UserInterface) {
       return '';
     }
@@ -263,7 +264,7 @@ final class AutoLoginUrlGeneral {
       $this->logger->warning('Failed to generate secret with random_bytes, falling back to Random class: @message', [
         '@message' => $e->getMessage(),
       ]);
-      
+
       $random_generator = new Random();
       return $random_generator->name(64);
     }

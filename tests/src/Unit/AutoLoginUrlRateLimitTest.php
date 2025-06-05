@@ -46,7 +46,8 @@ final class AutoLoginUrlRateLimitTest extends UnitTestCase {
 
     $this->configFactory = $this->createMock(ConfigFactoryInterface::class);
     $this->state = $this->createMock(StateInterface::class);
-    $this->currentTime = 1640995200; // Fixed timestamp for testing
+    // Fixed timestamp for testing.
+    $this->currentTime = 1640995200;
 
     $this->rateLimiter = new AutoLoginUrlRateLimit(
       $this->configFactory,
@@ -67,13 +68,18 @@ final class AutoLoginUrlRateLimitTest extends UnitTestCase {
       ->with('auto_login_url.settings')
       ->willReturn($config);
 
-    // Simulate 5 attempts within the last hour
+    // Simulate 5 attempts within the last hour.
     $attempts = [
-      $this->currentTime - 1800, // 30 minutes ago
-      $this->currentTime - 1200, // 20 minutes ago
-      $this->currentTime - 600,  // 10 minutes ago
-      $this->currentTime - 300,  // 5 minutes ago
-      $this->currentTime - 60,   // 1 minute ago
+      // 30 minutes ago.
+      $this->currentTime - 1800,
+      // 20 minutes ago.
+      $this->currentTime - 1200,
+      // 10 minutes ago.
+      $this->currentTime - 600,
+      // 5 minutes ago.
+      $this->currentTime - 300,
+      // 1 minute ago.
+      $this->currentTime - 60,
     ];
 
     $this->state->method('get')
@@ -101,7 +107,7 @@ final class AutoLoginUrlRateLimitTest extends UnitTestCase {
       ->with('auto_login_url.settings')
       ->willReturn($config);
 
-    // Simulate 5 attempts within the last hour (at the limit)
+    // Simulate 5 attempts within the last hour (at the limit).
     $attempts = [
       $this->currentTime - 1800,
       $this->currentTime - 1200,
@@ -131,26 +137,30 @@ final class AutoLoginUrlRateLimitTest extends UnitTestCase {
       ->with('auto_login_url.settings')
       ->willReturn($config);
 
-    // Mix of old and recent attempts
-    $oldAttempts = [
-      $this->currentTime - 7200, // 2 hours ago (expired)
-      $this->currentTime - 5400, // 1.5 hours ago (expired)
-      $this->currentTime - 1800, // 30 minutes ago (valid)
-      $this->currentTime - 600,  // 10 minutes ago (valid)
+    // Mix of old and recent attempts.
+    $old_attempts = [
+      // 2 hours ago (expired).
+      $this->currentTime - 7200,
+      // 1.5 hours ago (expired).
+      $this->currentTime - 5400,
+      // 30 minutes ago (valid).
+      $this->currentTime - 1800,
+      // 10 minutes ago (valid).
+      $this->currentTime - 600,
     ];
 
-    $validAttempts = [
+    $expected_valid_attempts = [
       $this->currentTime - 1800,
       $this->currentTime - 600,
     ];
 
     $this->state->method('get')
       ->with('auto_login_url.create_rate.123', [])
-      ->willReturn($oldAttempts);
+      ->willReturn($old_attempts);
 
     $this->state->expects($this->once())
       ->method('set')
-      ->with('auto_login_url.create_rate.123', $validAttempts);
+      ->with('auto_login_url.create_rate.123', $expected_valid_attempts);
 
     $result = $this->rateLimiter->checkCreationLimit(123);
     $this->assertTrue($result);
@@ -163,7 +173,8 @@ final class AutoLoginUrlRateLimitTest extends UnitTestCase {
     $config = $this->createMock(ImmutableConfig::class);
     $config->method('get')
       ->with('max_urls_per_user_per_hour')
-      ->willReturn(NULL); // No config set
+      // No config set.
+      ->willReturn(NULL);
 
     $this->configFactory->method('get')
       ->with('auto_login_url.settings')
@@ -181,19 +192,25 @@ final class AutoLoginUrlRateLimitTest extends UnitTestCase {
    * @covers ::registerCreation
    */
   public function testRegisterCreation(): void {
-    $existingAttempts = [
+    $existing_attempts = [
       $this->currentTime - 1800,
       $this->currentTime - 600,
     ];
 
     $this->state->method('get')
       ->with('auto_login_url.create_rate.123', [])
-      ->willReturn($existingAttempts);
+      ->willReturn($existing_attempts);
+
+    $expected_attempts = [
+      $this->currentTime - 1800,
+      $this->currentTime - 600,
+      $this->currentTime,
+    ];
 
     $this->state->expects($this->once())
       ->method('set')
       ->with('auto_login_url.create_rate.123', $this->callback(function ($attempts) {
-        // Check that a new timestamp was added
+        // Check that a new timestamp was added.
         return count($attempts) === 3 && end($attempts) >= $this->currentTime;
       }));
 
@@ -204,20 +221,20 @@ final class AutoLoginUrlRateLimitTest extends UnitTestCase {
    * @covers ::registerCreation
    */
   public function testRegisterCreationWithMaxAttempts(): void {
-    // Create 25 existing attempts (over the max of 20)
-    $existingAttempts = [];
+    // Create 25 existing attempts (over the max of 20).
+    $existing_attempts = [];
     for ($i = 25; $i > 0; $i--) {
-      $existingAttempts[] = $this->currentTime - ($i * 60);
+      $existing_attempts[] = $this->currentTime - ($i * 60);
     }
 
     $this->state->method('get')
       ->with('auto_login_url.create_rate.123', [])
-      ->willReturn($existingAttempts);
+      ->willReturn($existing_attempts);
 
     $this->state->expects($this->once())
       ->method('set')
       ->with('auto_login_url.create_rate.123', $this->callback(function ($attempts) {
-        // Should be trimmed to max 20 attempts
+        // Should be trimmed to max 20 attempts.
         return count($attempts) === 20;
       }));
 
@@ -238,7 +255,7 @@ final class AutoLoginUrlRateLimitTest extends UnitTestCase {
       ->willReturn($config);
 
     $result = $this->rateLimiter->getRateLimitConfig();
-    
+
     $expected = [
       'limit' => 15,
       'window' => 3600,
@@ -261,9 +278,10 @@ final class AutoLoginUrlRateLimitTest extends UnitTestCase {
       ->willReturn($config);
 
     $result = $this->rateLimiter->getRateLimitConfig();
-    
+
     $expected = [
-      'limit' => 10, // Default value
+      // Default value.
+      'limit' => 10,
       'window' => 3600,
     ];
 
@@ -284,9 +302,12 @@ final class AutoLoginUrlRateLimitTest extends UnitTestCase {
       ->willReturn($config);
 
     $attempts = [
-      $this->currentTime - 1800, // Valid
-      $this->currentTime - 600,  // Valid
-      $this->currentTime - 60,   // Valid
+      // Valid.
+      $this->currentTime - 1800,
+      // Valid.
+      $this->currentTime - 600,
+      // Valid.
+      $this->currentTime - 60,
     ];
 
     $this->state->method('get')
@@ -294,7 +315,8 @@ final class AutoLoginUrlRateLimitTest extends UnitTestCase {
       ->willReturn($attempts);
 
     $result = $this->rateLimiter->getRemainingAttempts(123);
-    $this->assertEquals(7, $result); // 10 - 3 = 7
+    // 10 - 3 = 7.
+    $this->assertEquals(7, $result);
   }
 
   /**
@@ -340,7 +362,8 @@ final class AutoLoginUrlRateLimitTest extends UnitTestCase {
       ->willReturn($attempts);
 
     $result = $this->rateLimiter->getRemainingAttempts(123);
-    $this->assertEquals(0, $result); // Should not go negative
+    // Should not go negative.
+    $this->assertEquals(0, $result);
   }
 
   /**
@@ -358,7 +381,7 @@ final class AutoLoginUrlRateLimitTest extends UnitTestCase {
    * @covers ::clearAllLimits
    */
   public function testClearAllLimits(): void {
-    $allKeys = [
+    $all_keys = [
       'auto_login_url.create_rate.123' => [],
       'auto_login_url.create_rate.456' => [],
       'other.state.key' => 'value',
@@ -367,9 +390,9 @@ final class AutoLoginUrlRateLimitTest extends UnitTestCase {
 
     $this->state->method('getMultiple')
       ->with([])
-      ->willReturn($allKeys);
+      ->willReturn($all_keys);
 
-    // Should delete the 3 rate limiting keys but not the other one
+    // Should delete the 3 rate limiting keys but not the other one.
     $this->state->expects($this->exactly(3))
       ->method('delete')
       ->withConsecutive(
@@ -394,44 +417,57 @@ final class AutoLoginUrlRateLimitTest extends UnitTestCase {
       ->with('auto_login_url.settings')
       ->willReturn($config);
 
-    $allKeys = [
+    $all_keys = [
       'auto_login_url.create_rate.123' => [
-        $this->currentTime - 600,  // Recent
-        $this->currentTime - 300,  // Recent
+        // Recent.
+        $this->currentTime - 600,
+        // Recent.
+        $this->currentTime - 300,
       ],
       'auto_login_url.create_rate.456' => [
-        $this->currentTime - 1800, // Recent
-        $this->currentTime - 900,  // Recent
-        $this->currentTime - 600,  // Recent
-        $this->currentTime - 300,  // Recent
-        $this->currentTime - 120,  // Recent
-        $this->currentTime - 60,   // Recent
-        $this->currentTime - 30,   // Recent
-        $this->currentTime - 10,   // Recent (8 recent = 80% of 10)
+        // Recent.
+        $this->currentTime - 1800,
+        // Recent.
+        $this->currentTime - 900,
+        // Recent.
+        $this->currentTime - 600,
+        // Recent.
+        $this->currentTime - 300,
+        // Recent.
+        $this->currentTime - 120,
+        // Recent.
+        $this->currentTime - 60,
+        // Recent.
+        $this->currentTime - 30,
+        // Recent (8 recent = 80% of 10).
+        $this->currentTime - 10,
       ],
       'auto_login_url.create_rate.789' => [
-        $this->currentTime - 7200, // Old
+        // Old.
+        $this->currentTime - 7200,
       ],
       'other.key' => 'value',
     ];
 
     $this->state->method('getMultiple')
       ->with([])
-      ->willReturn($allKeys);
+      ->willReturn($all_keys);
 
     $this->state->method('get')
       ->willReturnMap([
-        ['auto_login_url.create_rate.123', [], $allKeys['auto_login_url.create_rate.123']],
-        ['auto_login_url.create_rate.456', [], $allKeys['auto_login_url.create_rate.456']],
-        ['auto_login_url.create_rate.789', [], $allKeys['auto_login_url.create_rate.789']],
+        ['auto_login_url.create_rate.123', [], $all_keys['auto_login_url.create_rate.123']],
+        ['auto_login_url.create_rate.456', [], $all_keys['auto_login_url.create_rate.456']],
+        ['auto_login_url.create_rate.789', [], $all_keys['auto_login_url.create_rate.789']],
       ]);
 
     $result = $this->rateLimiter->getStatistics();
 
     $expected = [
       'total_users_with_attempts' => 3,
-      'total_recent_attempts' => 10, // 2 + 8 + 0
-      'users_near_limit' => 1, // Only user 456 with 8 attempts (80% of 10)
+      // 2 + 8 + 0.
+      'total_recent_attempts' => 10,
+      // Only user 456 with 8 attempts (80% of 10).
+      'users_near_limit' => 1,
       'rate_limit' => 10,
       'time_window_hours' => 1,
     ];
@@ -443,49 +479,56 @@ final class AutoLoginUrlRateLimitTest extends UnitTestCase {
    * @covers ::cleanupOldData
    */
   public function testCleanupOldData(): void {
-    $cutoff = $this->currentTime - (3600 * 2); // 2 hours ago
+    // 2 hours ago.
+    $cutoff = $this->currentTime - (3600 * 2);
 
-    $allKeys = [
+    $all_keys = [
       'auto_login_url.create_rate.123' => [
-        $cutoff - 3600, // Very old
-        $this->currentTime - 600, // Recent
+        // Very old.
+        $cutoff - 3600,
+        // Recent.
+        $this->currentTime - 600,
       ],
       'auto_login_url.create_rate.456' => [
-        $cutoff - 7200, // Very old
-        $cutoff - 3600, // Very old
+        // Very old.
+        $cutoff - 7200,
+        // Very old.
+        $cutoff - 3600,
       ],
       'auto_login_url.create_rate.789' => [
-        $this->currentTime - 1800, // Recent
-        $this->currentTime - 600,  // Recent
+        // Recent.
+        $this->currentTime - 1800,
+        // Recent.
+        $this->currentTime - 600,
       ],
       'other.key' => 'value',
     ];
 
     $this->state->method('getMultiple')
       ->with([])
-      ->willReturn($allKeys);
+      ->willReturn($all_keys);
 
     $this->state->method('get')
       ->willReturnMap([
-        ['auto_login_url.create_rate.123', [], $allKeys['auto_login_url.create_rate.123']],
-        ['auto_login_url.create_rate.456', [], $allKeys['auto_login_url.create_rate.456']],
-        ['auto_login_url.create_rate.789', [], $allKeys['auto_login_url.create_rate.789']],
+        ['auto_login_url.create_rate.123', [], $all_keys['auto_login_url.create_rate.123']],
+        ['auto_login_url.create_rate.456', [], $all_keys['auto_login_url.create_rate.456']],
+        ['auto_login_url.create_rate.789', [], $all_keys['auto_login_url.create_rate.789']],
       ]);
 
-    // User 123: should update with only recent attempts
+    // User 123: should update with only recent attempts.
     $this->state->expects($this->once())
       ->method('set')
       ->with('auto_login_url.create_rate.123', [$this->currentTime - 600]);
 
-    // User 456: should be deleted (no recent attempts)
+    // User 456: should be deleted (no recent attempts).
     $this->state->expects($this->once())
       ->method('delete')
       ->with('auto_login_url.create_rate.456');
 
-    // User 789: no change needed (all recent)
-
+    // User 789: no change needed (all recent).
     $result = $this->rateLimiter->cleanupOldData();
-    $this->assertEquals(1, $result); // One user record deleted
+    // One user record deleted.
+    $this->assertEquals(1, $result);
   }
 
 }
