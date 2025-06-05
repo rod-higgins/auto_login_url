@@ -8,7 +8,7 @@
 declare(strict_types=1);
 
 /**
- *
+ * Implements hook_schema().
  */
 function auto_login_url_schema(): array {
   $schema['auto_login_url'] = [
@@ -46,7 +46,7 @@ function auto_login_url_schema(): array {
       ],
       'ip_address' => [
         'type' => 'varchar',
-      // Support IPv6.
+        // Support IPv6.
         'length' => 45,
         'not null' => FALSE,
         'description' => 'IP address where token was created.',
@@ -64,7 +64,7 @@ function auto_login_url_schema(): array {
       'timestamp_cleanup' => ['timestamp'],
       'uid_timestamp' => ['uid', 'timestamp'],
       'ip_timestamp' => ['ip_address', 'timestamp'],
-    // Enhanced composite index.
+      // Enhanced composite index.
       'uid_hash_lookup' => ['uid', 'hash'],
     ],
     'foreign keys' => [
@@ -128,7 +128,8 @@ function auto_login_url_schema(): array {
  * Implements hook_install().
  */
 function auto_login_url_install(): void {
-  \Drupal::logger('auto_login_url')->info('Auto Login URL module installed successfully.');
+  \Drupal::logger('auto_login_url')
+    ->info('Auto Login URL module installed successfully.');
 }
 
 /**
@@ -136,7 +137,9 @@ function auto_login_url_install(): void {
  */
 function auto_login_url_uninstall(): void {
   // Clean up any remaining configuration.
-  \Drupal::configFactory()->getEditable('auto_login_url.settings')->delete();
+  \Drupal::configFactory()
+    ->getEditable('auto_login_url.settings')
+    ->delete();
 
   // Clean up state variables used by rate limiting.
   $state = \Drupal::state();
@@ -147,7 +150,8 @@ function auto_login_url_uninstall(): void {
     }
   }
 
-  \Drupal::logger('auto_login_url')->info('Auto Login URL module uninstalled and configuration cleaned up.');
+  \Drupal::logger('auto_login_url')
+    ->info('Auto Login URL module uninstalled and configuration cleaned up.');
 }
 
 /**
@@ -182,7 +186,10 @@ function auto_login_url_update_10001(): void {
 
   // Add new indexes for better performance.
   if (!$schema->indexExists('auto_login_url', 'uid_timestamp')) {
-    $schema->addIndex('auto_login_url', 'uid_timestamp', ['uid', 'timestamp'], [
+    $schema->addIndex('auto_login_url', 'uid_timestamp', [
+      'uid',
+      'timestamp',
+    ], [
       'indexes' => [
         'uid_timestamp' => ['uid', 'timestamp'],
       ],
@@ -198,7 +205,8 @@ function auto_login_url_update_10001(): void {
     'description' => 'Cryptographic hash for the auto login token.',
   ]);
 
-  \Drupal::logger('auto_login_url')->info('Database schema updated for Drupal 10+ compatibility.');
+  \Drupal::logger('auto_login_url')
+    ->info('Database schema updated for Drupal 10+ compatibility.');
 }
 
 /**
@@ -229,10 +237,14 @@ function auto_login_url_update_11001(): void {
 
   // Add IP+timestamp index.
   if (!$schema->indexExists('auto_login_url', 'ip_timestamp')) {
-    $schema->addIndex('auto_login_url', 'ip_timestamp', ['ip_address', 'timestamp']);
+    $schema->addIndex('auto_login_url', 'ip_timestamp', [
+      'ip_address',
+      'timestamp',
+    ]);
   }
 
-  \Drupal::logger('auto_login_url')->info('Enhanced tracking fields and indexes added.');
+  \Drupal::logger('auto_login_url')
+    ->info('Enhanced tracking fields and indexes added.');
 }
 
 /**
@@ -299,7 +311,8 @@ function auto_login_url_update_11002(): void {
   }
 
   // Add new configuration options with defaults.
-  $config = \Drupal::configFactory()->getEditable('auto_login_url.settings');
+  $config = \Drupal::configFactory()
+    ->getEditable('auto_login_url.settings');
 
   if ($config->get('validate_ip_address') === NULL) {
     $config->set('validate_ip_address', FALSE);
@@ -315,7 +328,8 @@ function auto_login_url_update_11002(): void {
 
   $config->save(TRUE);
 
-  \Drupal::logger('auto_login_url')->info('Enhanced analytics and security features added.');
+  \Drupal::logger('auto_login_url')
+    ->info('Enhanced analytics and security features added.');
 }
 
 /**
@@ -326,7 +340,7 @@ function auto_login_url_update_11003(): void {
 
   // Only keep analytics data for the last 6 months to prevent table growth.
   if ($database->schema()->tableExists('auto_login_url_usage')) {
-    // 6 months ago
+    // Calculate cutoff time (6 months ago).
     $cutoff_time = time() - (6 * 30 * 24 * 60 * 60);
 
     $deleted = $database->delete('auto_login_url_usage')
@@ -334,9 +348,10 @@ function auto_login_url_update_11003(): void {
       ->execute();
 
     if ($deleted > 0) {
-      \Drupal::logger('auto_login_url')->info('Cleaned up @count old analytics records during update', [
-        '@count' => $deleted,
-      ]);
+      \Drupal::logger('auto_login_url')
+        ->info('Cleaned up @count old analytics records during update', [
+          '@count' => $deleted,
+        ]);
     }
   }
 }
