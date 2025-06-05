@@ -60,9 +60,56 @@ function auto_login_url_schema(): array {
       'timestamp_cleanup' => ['timestamp'],
       'uid_timestamp' => ['uid', 'timestamp'],
       'ip_timestamp' => ['ip_address', 'timestamp'],
+      'uid_hash_lookup' => ['uid', 'hash'], // Enhanced composite index
     ],
     'foreign keys' => [
       'auto_login_user' => [
+        'table' => 'users',
+        'columns' => ['uid' => 'uid'],
+      ],
+    ],
+  ];
+
+  $schema['auto_login_url_usage'] = [
+    'description' => 'Tracks auto login URL usage for analytics.',
+    'fields' => [
+      'id' => [
+        'description' => 'Primary key: unique ID for the usage record.',
+        'type' => 'serial',
+        'not null' => TRUE,
+      ],
+      'original_id' => [
+        'description' => 'Reference to original auto_login_url record.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ],
+      'uid' => [
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'description' => 'The user ID who used the URL.',
+      ],
+      'used_timestamp' => [
+        'type' => 'int',
+        'not null' => TRUE,
+        'description' => 'Unix timestamp when URL was used.',
+      ],
+      'ip_address' => [
+        'type' => 'varchar',
+        'length' => 45,
+        'not null' => FALSE,
+        'description' => 'IP address where URL was used.',
+      ],
+    ],
+    'primary key' => ['id'],
+    'indexes' => [
+      'uid_timestamp' => ['uid', 'used_timestamp'],
+      'original_id' => ['original_id'],
+      'usage_cleanup' => ['used_timestamp'],
+    ],
+    'foreign keys' => [
+      'usage_user' => [
         'table' => 'users',
         'columns' => ['uid' => 'uid'],
       ],
@@ -85,6 +132,16 @@ function auto_login_url_install(): void {
 function auto_login_url_uninstall(): void {
   // Clean up any remaining configuration.
   \Drupal::configFactory()->getEditable('auto_login_url.settings')->delete();
+  
+  // Clean up state variables used by rate limiting.
+  $state = \Drupal::state();
+  $keys = $state->getMultiple([]);
+  foreach ($keys as $key => $value) {
+    if (str_starts_with($key, 'auto_login_url.create_rate.')) {
+      $state->delete($key);
+    }
+  }
+  
   \Drupal::logger('auto_login_url')->info('Auto Login URL module uninstalled and configuration cleaned up.');
 }
 
@@ -171,4 +228,109 @@ function auto_login_url_update_11001(): void {
   }
 
   \Drupal::logger('auto_login_url')->info('Enhanced tracking fields and indexes added.');
+}
+
+/**
+ * Update 11002: Add usage analytics table and enhanced configuration.
+ */
+function auto_login_url_update_11002(): void {
+  $database = \Drupal::database();
+  $schema = $database->schema();
+
+  // Create usage analytics table
+  if (!$schema->tableExists('auto_login_url_usage')) {
+    $table_schema = [
+      'description' => 'Tracks auto login URL usage for analytics.',
+      'fields' => [
+        'id' => [
+          'description' => 'Primary key: unique ID for the usage record.',
+          'type' => 'serial',
+          'not null' => TRUE,
+        ],
+        'original_id' => [
+          'description' => 'Reference to original auto_login_url record.',
+          'type' => 'int',
+          'unsigned' => TRUE,
+          'not null' => TRUE,
+        ],
+        'uid' => [
+          'type' => 'int',
+          'unsigned' => TRUE,
+          'not null' => TRUE,
+          'description' => 'The user ID who used the URL.',
+        ],
+        'used_timestamp' => [
+          'type' => 'int',
+          'not null' => TRUE,
+          'description' => 'Unix timestamp when URL was used.',
+        ],
+        'ip_address' => [
+          'type' => 'varchar',
+          'length' => 45,
+          'not null' => FALSE,
+          'description' => 'IP address where URL was used.',
+        ],
+      ],
+      'primary key' => ['id'],
+      'indexes' => [
+        'uid_timestamp' => ['uid', 'used_timestamp'],
+        'original_id' => ['original_id'],
+        'usage_cleanup' => ['used_timestamp'],
+      ],
+      'foreign keys' => [
+        'usage_user' => [
+          'table' => 'users',
+          'columns' => ['uid' => 'uid'],
+        ],
+      ],
+    ];
+    
+    $schema->createTable('auto_login_url_usage', $table_schema);
+  }
+
+  // Add enhanced composite index for better performance
+  if (!$schema->indexExists('auto_login_url', 'uid_hash_lookup')) {
+    $schema->addIndex('auto_login_url', 'uid_hash_lookup', ['uid', 'hash']);
+  }
+
+  // Add new configuration options with defaults
+  $config = \Drupal::configFactory()->getEditable('auto_login_url.settings');
+  
+  if ($config->get('validate_ip_address') === NULL) {
+    $config->set('validate_ip_address', FALSE);
+  }
+  
+  if ($config->get('enable_usage_analytics') === NULL) {
+    $config->set('enable_usage_analytics', TRUE);
+  }
+  
+  if ($config->get('max_urls_per_user_per_hour') === NULL) {
+    $config->set('max_urls_per_user_per_hour', 10);
+  }
+  
+  $config->save(TRUE);
+
+  \Drupal::logger('auto_login_url')->info('Enhanced analytics and security features added.');
+}
+
+/**
+ * Update 11003: Clean up old analytics data to prevent unlimited growth.
+ */
+function auto_login_url_update_11003(): void {
+  $database = \Drupal::database();
+  
+  // Only keep analytics data for the last 6 months to prevent table growth
+  if ($database->schema()->tableExists('auto_login_url_usage')) {
+    $cutoff_time = time() - (6 * 30 * 24 * 60 * 60); // 6 months ago
+    
+    $deleted = $database->delete('auto_login_url_usage')
+      ->condition('used_timestamp', $cutoff_time, '<=')
+      ->execute();
+    
+    if ($deleted > 0) {
+      \Drupal::logger('auto_login_url')->info('Cleaned up @count old analytics records during update', [
+        '@count' => $deleted,
+      ]);
+    }
+  }
 }

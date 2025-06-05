@@ -16,6 +16,20 @@ function auto_login_url_help(string $route_name, RouteMatchInterface $route_matc
       $output = '';
       $output .= '<h3>' . t('About') . '</h3>';
       $output .= '<p>' . t('This is a module that creates auto login URLs on demand or with tokens.') . ' </p>';
+      $output .= '<h3>' . t('Usage') . '</h3>';
+      $output .= '<p>' . t('You can create auto login URLs using the API functions:') . '</p>';
+      $output .= '<ul>';
+      $output .= '<li>' . t('<code>auto_login_url_create($uid, $destination, $absolute)</code> - Creates an auto login URL for a user') . '</li>';
+      $output .= '<li>' . t('<code>auto_login_url_convert_text($uid, $text)</code> - Converts all links in text to auto login URLs') . '</li>';
+      $output .= '</ul>';
+      $output .= '<h3>' . t('Security Features') . '</h3>';
+      $output .= '<ul>';
+      $output .= '<li>' . t('Cryptographically secure token generation') . '</li>';
+      $output .= '<li>' . t('Configurable token expiration') . '</li>';
+      $output .= '<li>' . t('Rate limiting to prevent abuse') . '</li>';
+      $output .= '<li>' . t('Optional IP address validation') . '</li>';
+      $output .= '<li>' . t('Flood protection against brute force attacks') . '</li>';
+      $output .= '</ul>';
 
       return $output;
   }
@@ -68,16 +82,57 @@ function auto_login_url_convert_text(int $uid, string $text): string {
  * Implements hook_cron().
  */
 function auto_login_url_cron(): void {
+  $logger = \Drupal::logger('auto_login_url');
+  
+  // Clean up expired auto login URLs.
   /** @var \Drupal\auto_login_url\AutoLoginUrlLogin $login_service */
   $login_service = \Drupal::service('auto_login_url.login');
   
   $deleted_count = $login_service->cleanupExpiredTokens();
   
   if ($deleted_count > 0) {
-    \Drupal::logger('auto_login_url')
-      ->info('Cleaned up @count expired auto login URLs during cron', [
-        '@count' => $deleted_count,
-      ]);
+    $logger->info('Cleaned up @count expired auto login URLs during cron', [
+      '@count' => $deleted_count,
+    ]);
+  }
+
+  // Clean up old rate limiting data.
+  /** @var \Drupal\auto_login_url\AutoLoginUrlRateLimit $rate_limiter */
+  $rate_limiter = \Drupal::service('auto_login_url.rate_limit');
+  
+  $cleaned_rate_data = $rate_limiter->cleanupOldData();
+  
+  if ($cleaned_rate_data > 0) {
+    $logger->info('Cleaned up rate limiting data for @count users during cron', [
+      '@count' => $cleaned_rate_data,
+    ]);
+  }
+
+  // Clean up old analytics data (if enabled and table exists).
+  $config = \Drupal::config('auto_login_url.settings');
+  if ($config->get('enable_usage_analytics')) {
+    $database = \Drupal::database();
+    
+    if ($database->schema()->tableExists('auto_login_url_usage')) {
+      try {
+        // Only keep analytics data for the last 6 months.
+        $cutoff_time = time() - (6 * 30 * 24 * 60 * 60);
+        $deleted_analytics = $database->delete('auto_login_url_usage')
+          ->condition('used_timestamp', $cutoff_time, '<=')
+          ->execute();
+
+        if ($deleted_analytics > 0) {
+          $logger->info('Cleaned up @count old analytics records during cron', [
+            '@count' => $deleted_analytics,
+          ]);
+        }
+      }
+      catch (\Exception $e) {
+        $logger->error('Failed to clean up analytics data during cron: @message', [
+          '@message' => $e->getMessage(),
+        ]);
+      }
+    }
   }
 }
 
@@ -113,18 +168,156 @@ function auto_login_url_tokens(string $type, array $tokens, array $data = [], ar
     $user = $data['user'];
 
     foreach ($tokens as $name => $original) {
-      switch ($name) {
-        case 'auto-login-url-token':
-          $replacements[$original] = auto_login_url_create($user->id(), '<front>', TRUE);
-          break;
+      try {
+        switch ($name) {
+          case 'auto-login-url-token':
+            $replacements[$original] = auto_login_url_create($user->id(), '<front>', TRUE);
+            break;
 
-        case 'auto-login-url-account-edit-token':
-          $replacements[$original] = auto_login_url_create($user->id(), 'user/' . $user->id() . '/edit', TRUE);
-          break;
-
+          case 'auto-login-url-account-edit-token':
+            $replacements[$original] = auto_login_url_create($user->id(), 'user/' . $user->id() . '/edit', TRUE);
+            break;
+        }
+      }
+      catch (\Exception $e) {
+        // Log error but don't fail token replacement.
+        \Drupal::logger('auto_login_url')->error('Failed to generate token @token for user @uid: @message', [
+          '@token' => $name,
+          '@uid' => $user->id(),
+          '@message' => $e->getMessage(),
+        ]);
+        
+        // Return a safe fallback.
+        $replacements[$original] = '';
       }
     }
   }
 
   return $replacements;
+}
+
+/**
+ * Implements hook_preprocess_HOOK() for user login forms.
+ *
+ * This can be used to add information about auto login URLs to login forms.
+ */
+function auto_login_url_preprocess_user_login_form(&$variables): void {
+  // Add information about auto login URLs if user has permission.
+  $current_user = \Drupal::currentUser();
+  
+  if ($current_user->hasPermission('administer auto login url')) {
+    $variables['#attached']['drupalSettings']['autoLoginUrl'] = [
+      'adminConfigured' => TRUE,
+    ];
+  }
+}
+
+/**
+ * Implements hook_mail().
+ *
+ * Defines mail templates that can include auto login URLs.
+ */
+function auto_login_url_mail(string $key, array &$message, array $params): void {
+  switch ($key) {
+    case 'auto_login_notification':
+      $message['subject'] = t('Auto Login URL Created');
+      $message['body'][] = t('An auto login URL has been created for your account.');
+      if (!empty($params['url'])) {
+        $message['body'][] = t('Click here to access your account: @url', ['@url' => $params['url']]);
+      }
+      break;
+  }
+}
+
+/**
+ * Helper function to check if a user can create auto login URLs.
+ *
+ * @param int $uid
+ *   The user ID to check.
+ *
+ * @return bool
+ *   TRUE if the user can create auto login URLs, FALSE otherwise.
+ */
+function auto_login_url_user_can_create(int $uid): bool {
+  /** @var \Drupal\auto_login_url\AutoLoginUrlGeneral $general_service */
+  $general_service = \Drupal::service('auto_login_url.general');
+  
+  /** @var \Drupal\auto_login_url\AutoLoginUrlRateLimit $rate_limiter */
+  $rate_limiter = \Drupal::service('auto_login_url.rate_limit');
+  
+  // Check if user exists and is valid.
+  if (!$general_service->validateUserId($uid)) {
+    return FALSE;
+  }
+  
+  // Check rate limiting.
+  if (!$rate_limiter->checkCreationLimit($uid)) {
+    return FALSE;
+  }
+  
+  return TRUE;
+}
+
+/**
+ * Helper function to get auto login URL statistics for a user.
+ *
+ * @param int $uid
+ *   The user ID.
+ *
+ * @return array
+ *   Array containing user-specific statistics.
+ */
+function auto_login_url_get_user_stats(int $uid): array {
+  try {
+    $database = \Drupal::database();
+    $config = \Drupal::config('auto_login_url.settings');
+    $expiration = (int) $config->get('expiration');
+    $cutoff_time = time() - $expiration;
+
+    $active_urls = (int) $database->select('auto_login_url')
+      ->condition('uid', $uid)
+      ->condition('timestamp', $cutoff_time, '>')
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+
+    $total_urls = (int) $database->select('auto_login_url')
+      ->condition('uid', $uid)
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+
+    /** @var \Drupal\auto_login_url\AutoLoginUrlRateLimit $rate_limiter */
+    $rate_limiter = \Drupal::service('auto_login_url.rate_limit');
+    $remaining_attempts = $rate_limiter->getRemainingAttempts($uid);
+
+    $usage_count = 0;
+    if ($database->schema()->tableExists('auto_login_url_usage')) {
+      $usage_count = (int) $database->select('auto_login_url_usage')
+        ->condition('uid', $uid)
+        ->countQuery()
+        ->execute()
+        ->fetchField();
+    }
+
+    return [
+      'active_urls' => $active_urls,
+      'total_urls_created' => $total_urls,
+      'remaining_attempts' => $remaining_attempts,
+      'total_usage_count' => $usage_count,
+    ];
+  }
+  catch (\Exception $e) {
+    \Drupal::logger('auto_login_url')->error('Failed to get user stats for @uid: @message', [
+      '@uid' => $uid,
+      '@message' => $e->getMessage(),
+    ]);
+    
+    return [
+      'active_urls' => 0,
+      'total_urls_created' => 0,
+      'remaining_attempts' => 0,
+      'total_usage_count' => 0,
+    ];
+  }
 }

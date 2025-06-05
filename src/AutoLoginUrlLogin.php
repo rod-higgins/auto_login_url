@@ -116,6 +116,11 @@ final class AutoLoginUrlLogin {
         return FALSE;
       }
 
+      // Optional IP validation (if enabled in config).
+      if (!$this->validateIpAddress($login_data)) {
+        return FALSE;
+      }
+
       // Load and validate user account.
       $account = $this->loadAndValidateUser($uid);
       if ($account === FALSE) {
@@ -124,6 +129,9 @@ final class AutoLoginUrlLogin {
 
       // Perform the login.
       $this->performUserLogin($account);
+
+      // Log usage for analytics (if enabled).
+      $this->logUrlUsage($login_data);
 
       // Handle post-login cleanup.
       $this->handlePostLoginCleanup($login_data['id']);
@@ -239,6 +247,75 @@ final class AutoLoginUrlLogin {
         '@message' => $e->getMessage(),
       ]);
       return FALSE;
+    }
+  }
+
+  /**
+   * Validates IP address if IP validation is enabled.
+   *
+   * @param array $login_data
+   *   The login data array.
+   *
+   * @return bool
+   *   TRUE if validation passes, FALSE otherwise.
+   */
+  private function validateIpAddress(array $login_data): bool {
+    $config = $this->configFactory->get('auto_login_url.settings');
+    
+    // Skip IP validation if not enabled or no IP stored.
+    if (!$config->get('validate_ip_address') || empty($login_data['ip_address'])) {
+      return TRUE;
+    }
+
+    $current_ip = $this->autoLoginUrlGeneral->getClientIp();
+    
+    if ($login_data['ip_address'] !== $current_ip) {
+      $this->logger->warning('IP address validation failed for auto login. Expected: @expected, Got: @actual, User: @uid', [
+        '@expected' => $login_data['ip_address'],
+        '@actual' => $current_ip,
+        '@uid' => $login_data['uid'],
+      ]);
+      return FALSE;
+    }
+
+    return TRUE;
+  }
+
+  /**
+   * Logs URL usage for analytics if enabled.
+   *
+   * @param array $login_data
+   *   The login data array.
+   */
+  private function logUrlUsage(array $login_data): void {
+    $config = $this->configFactory->get('auto_login_url.settings');
+    
+    // Skip logging if analytics not enabled.
+    if (!$config->get('enable_usage_analytics')) {
+      return;
+    }
+
+    try {
+      // Check if analytics table exists.
+      if (!$this->connection->schema()->tableExists('auto_login_url_usage')) {
+        return;
+      }
+
+      // Insert usage record for analytics.
+      $this->connection->insert('auto_login_url_usage')
+        ->fields([
+          'original_id' => $login_data['id'],
+          'uid' => $login_data['uid'],
+          'used_timestamp' => time(),
+          'ip_address' => $this->autoLoginUrlGeneral->getClientIp(),
+        ])
+        ->execute();
+    }
+    catch (\Exception $e) {
+      // Don't fail login if logging fails.
+      $this->logger->warning('Failed to log URL usage: @message', [
+        '@message' => $e->getMessage(),
+      ]);
     }
   }
 

@@ -2,3 +2,6 @@ secret: ''
 expiration: 2592000
 delete: false
 token_length: 64
+validate_ip_address: false
+enable_usage_analytics: true
+max_urls_per_user_per_hour: 10

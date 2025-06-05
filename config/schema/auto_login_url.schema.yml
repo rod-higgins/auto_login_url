@@ -14,6 +14,15 @@ auto_login_url.settings:
     token_length:
       type: integer
       label: 'Token length in characters'
+    validate_ip_address:
+      type: boolean
+      label: 'Validate IP address on login'
+    enable_usage_analytics:
+      type: boolean
+      label: 'Enable usage analytics tracking'
+    max_urls_per_user_per_hour:
+      type: integer
+      label: 'Maximum URLs that can be created per user per hour'
     langcode:
       type: string
       label: 'Language code'

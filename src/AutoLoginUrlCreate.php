@@ -12,6 +12,7 @@ use Drupal\Core\Logger\LoggerChannelInterface;
 use Drupal\Core\Site\Settings;
 use Drupal\Core\Url;
 use Drupal\auto_login_url\Exception\AutoLoginUrlException;
+use Symfony\Component\HttpFoundation\RequestStack;
 
 /**
  * Service for creating auto login URLs.
@@ -46,6 +47,16 @@ final class AutoLoginUrlCreate {
   private LoggerChannelInterface $logger;
 
   /**
+   * The rate limiting service.
+   */
+  private AutoLoginUrlRateLimit $rateLimiter;
+
+  /**
+   * The request stack service.
+   */
+  private RequestStack $requestStack;
+
+  /**
    * Constructs an AutoLoginUrlCreate object.
    *
    * @param \Drupal\Core\Database\Connection $connection
@@ -56,17 +67,25 @@ final class AutoLoginUrlCreate {
    *   The Auto Login Url General service.
    * @param \Drupal\Core\Logger\LoggerChannelFactoryInterface $logger_factory
    *   The logger factory service.
+   * @param \Drupal\auto_login_url\AutoLoginUrlRateLimit $rate_limiter
+   *   The rate limiting service.
+   * @param \Symfony\Component\HttpFoundation\RequestStack $request_stack
+   *   The request stack service.
    */
   public function __construct(
     Connection $connection,
     ConfigFactoryInterface $config_factory,
     AutoLoginUrlGeneral $auto_login_url_general,
-    LoggerChannelFactoryInterface $logger_factory
+    LoggerChannelFactoryInterface $logger_factory,
+    AutoLoginUrlRateLimit $rate_limiter,
+    RequestStack $request_stack
   ) {
     $this->connection = $connection;
     $this->configFactory = $config_factory;
     $this->autoLoginUrlGeneral = $auto_login_url_general;
     $this->logger = $logger_factory->get('auto_login_url');
+    $this->rateLimiter = $rate_limiter;
+    $this->requestStack = $request_stack;
   }
 
   /**
@@ -86,6 +105,14 @@ final class AutoLoginUrlCreate {
    *   Thrown when URL creation fails.
    */
   public function create(int $uid, string $destination, bool $absolute = FALSE): string {
+    // Check rate limiting first.
+    if (!$this->rateLimiter->checkCreationLimit($uid)) {
+      $this->logger->warning('Rate limit exceeded for user @uid attempting to create auto login URL', [
+        '@uid' => $uid,
+      ]);
+      throw new AutoLoginUrlException('Rate limit exceeded. Too many auto login URLs created recently.');
+    }
+
     // Validate inputs.
     $this->validateCreateParameters($uid, $destination);
 
@@ -96,8 +123,11 @@ final class AutoLoginUrlCreate {
       // Generate unique hash.
       $hash_data = $this->generateUniqueHash($uid, $destination, $token_length);
 
-      // Store in database.
+      // Store in database with enhanced tracking.
       $this->storeHashInDatabase($uid, $hash_data['hash_db'], $destination);
+
+      // Register successful creation for rate limiting.
+      $this->rateLimiter->registerCreation($uid);
 
       // Generate and return URL.
       $url = Url::fromRoute(
@@ -106,7 +136,10 @@ final class AutoLoginUrlCreate {
         ['absolute' => $absolute]
       )->toString();
 
-      $this->logger->info('Auto login URL created for user @uid', ['@uid' => $uid]);
+      $this->logger->info('Auto login URL created for user @uid with destination @dest', [
+        '@uid' => $uid,
+        '@dest' => substr($destination, 0, 100),
+      ]);
 
       return $url;
     }
@@ -247,43 +280,53 @@ final class AutoLoginUrlCreate {
   }
 
   /**
- * Generates secure entropy for hash creation.
- */
-private function generateSecureEntropy(int $uid, string $destination, int $attempt): string {
-  try {
-    // Use random_bytes for cryptographic security.
-    $random_bytes = random_bytes(32);
-    $entropy_parts = [
-      $uid,
-      $destination,
-      time(),
-      $attempt,
-      bin2hex($random_bytes),
-      uniqid('', TRUE),
-      getmypid(), // Add process ID for additional entropy
-    ];
+   * Generates secure entropy for hash creation.
+   *
+   * @param int $uid
+   *   The user ID.
+   * @param string $destination
+   *   The destination URL.
+   * @param int $attempt
+   *   The attempt number.
+   *
+   * @return string
+   *   The entropy string.
+   */
+  private function generateSecureEntropy(int $uid, string $destination, int $attempt): string {
+    try {
+      // Use random_bytes for cryptographic security.
+      $random_bytes = random_bytes(32);
+      $entropy_parts = [
+        $uid,
+        $destination,
+        time(),
+        $attempt,
+        bin2hex($random_bytes),
+        uniqid('', TRUE),
+        getmypid(), // Add process ID for additional entropy
+      ];
 
-    return implode('|', $entropy_parts);
-  }
-  catch (\Exception $e) {
-    // Enhanced fallback with better logging
-    $this->logger->warning('random_bytes failed, using fallback entropy generation: @message', [
-      '@message' => $e->getMessage(),
-    ]);
-    
-    $entropy_parts = [
-      $uid,
-      $destination,
-      hrtime(TRUE), // Use high-resolution time
-      $attempt,
-      uniqid('', TRUE),
-      mt_rand(),
-      memory_get_usage(),
-    ];
+      return implode('|', $entropy_parts);
+    }
+    catch (\Exception $e) {
+      // Enhanced fallback with better logging
+      $this->logger->warning('random_bytes failed, using fallback entropy generation: @message', [
+        '@message' => $e->getMessage(),
+      ]);
+      
+      $entropy_parts = [
+        $uid,
+        $destination,
+        hrtime(TRUE), // Use high-resolution time
+        $attempt,
+        uniqid('', TRUE),
+        mt_rand(),
+        memory_get_usage(),
+      ];
 
-    return implode('|', $entropy_parts);
+      return implode('|', $entropy_parts);
+    }
   }
-}
 
   /**
    * Generates a hash token from entropy.
@@ -336,7 +379,7 @@ private function generateSecureEntropy(int $uid, string $destination, int $attem
   }
 
   /**
-   * Stores the hash in the database.
+   * Stores the hash in the database with enhanced tracking.
    *
    * @param int $uid
    *   The user ID.
@@ -349,12 +392,16 @@ private function generateSecureEntropy(int $uid, string $destination, int $attem
    *   Thrown when database insertion fails.
    */
   private function storeHashInDatabase(int $uid, string $hash_db, string $destination): void {
+    $request = $this->requestStack->getCurrentRequest();
+    
     $this->connection->insert('auto_login_url')
       ->fields([
         'uid' => $uid,
         'hash' => $hash_db,
         'destination' => $destination,
         'timestamp' => time(),
+        'ip_address' => $request ? $request->getClientIp() : NULL,
+        'user_agent' => $request ? substr($request->headers->get('User-Agent', ''), 0, 255) : NULL,
       ])
       ->execute();
   }

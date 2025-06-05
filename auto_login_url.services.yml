@@ -6,6 +6,8 @@ services:
       - '@config.factory'
       - '@auto_login_url.general'
       - '@logger.factory'
+      - '@auto_login_url.rate_limit'
+      - '@request_stack'
     tags:
       - { name: backend_overridable }
 
@@ -29,5 +31,13 @@ services:
       - '@logger.factory'
       - '@request_stack'
       - '@entity_type.manager'
+    tags:
+      - { name: backend_overridable }
+
+  auto_login_url.rate_limit:
+    class: Drupal\auto_login_url\AutoLoginUrlRateLimit
+    arguments:
+      - '@config.factory'
+      - '@state'
     tags:
       - { name: backend_overridable }
