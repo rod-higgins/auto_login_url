@@ -45,7 +45,12 @@
     "namespace",
     "plugins",
     "metadata",
-    "schemas"
+    "schemas",
+    "cscript",
+    "ealert",
+    "fetc",
+    "fpasswd",
+    "fscript"
   ],
   "dictionaries": ["php", "html", "css", "javascript"],
   "languageSettings": [
