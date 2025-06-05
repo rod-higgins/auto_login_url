@@ -3,3 +3,9 @@ auto_login_url.settings:
   route_name: auto_login_url.settings
   base_route: entity.user.collection
   weight: 25
+
+auto_login_url.health_check:
+  title: 'Health Check'
+  route_name: auto_login_url.health_check
+  base_route: auto_login_url.settings
+  weight: 10

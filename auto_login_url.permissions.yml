@@ -1,8 +1,9 @@
 administer auto login url:
   title: 'Administer Auto Login URL settings'
-  description: 'Perform administration tasks on Auto Login URL.'
-  restrict access: TRUE
+  description: 'Configure and manage Auto Login URL module settings.'
+  restrict access: true
+
 use auto login url:
   title: 'Use Auto Login URL'
-  description: 'Ability to login through Auto Login URL'
-  restrict access: TRUE
+  description: 'Authenticate using auto login URLs.'
+  restrict access: true

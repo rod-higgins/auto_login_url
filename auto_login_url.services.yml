@@ -1,11 +1,27 @@
 services:
   auto_login_url.create:
     class: Drupal\auto_login_url\AutoLoginUrlCreate
-    arguments: ['@database', '@config.factory', '@auto_login_url.general']
+    arguments: 
+      - '@database'
+      - '@config.factory'
+      - '@auto_login_url.general'
+      - '@logger.factory'
+
   auto_login_url.login:
     class: Drupal\auto_login_url\AutoLoginUrlLogin
-    arguments: ['@config.factory', '@database', '@auto_login_url.general']
+    arguments: 
+      - '@config.factory'
+      - '@database'
+      - '@auto_login_url.general'
+      - '@user.authentication'
+      - '@current_user'
+      - '@logger.factory'
+
   auto_login_url.general:
     class: Drupal\auto_login_url\AutoLoginUrlGeneral
-    arguments: ['@config.factory', '@flood', '@logger.factory', '@request_stack', '@entity_type.manager']
-
+    arguments: 
+      - '@config.factory'
+      - '@flood'
+      - '@logger.factory'
+      - '@request_stack'
+      - '@entity_type.manager'

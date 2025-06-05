@@ -4,16 +4,16 @@ auto_login_url.settings:
   mapping:
     secret:
       type: string
-      label: 'Secret key'
+      label: 'Secret key for hash generation'
     expiration:
       type: integer
-      label: 'Expiration period'
+      label: 'Token expiration time in seconds'
     delete:
       type: boolean
-      label: 'Delete on use'
+      label: 'Delete tokens after use'
     token_length:
       type: integer
-      label: 'Token length'
+      label: 'Token length in characters'
     langcode:
       type: string
       label: 'Language code'

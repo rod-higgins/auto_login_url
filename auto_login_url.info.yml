@@ -1,8 +1,9 @@
 name: Auto Login URL
 type: module
-description: Auto login, creates and uses tokens for auto login.
-core_version_requirement: ^8.8 || ^9 || ^10
+description: 'Secure auto login functionality using cryptographic tokens for user authentication.'
+core_version_requirement: ^10.2 || ^11
 configure: auto_login_url.settings
 dependencies:
-  - drupal:system
-  - drupal:user
+  - drupal:system (>= 10.2)
+  - drupal:user (>= 10.2)
+package: Authentication

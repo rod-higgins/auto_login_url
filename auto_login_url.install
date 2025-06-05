@@ -2,18 +2,20 @@
 
 /**
  * @file
- * Install file.
+ * Install, update and uninstall functions for Auto Login URL module.
  */
+
+declare(strict_types=1);
 
 /**
  * Implements hook_schema().
  */
-function auto_login_url_schema() {
+function auto_login_url_schema(): array {
   $schema['auto_login_url'] = [
-    'description' => 'Auto login records.',
+    'description' => 'Stores auto login URL tokens and associated data.',
     'fields' => [
       'id' => [
-        'description' => 'ID of the record.',
+        'description' => 'Primary key: unique ID for the auto login record.',
         'type' => 'serial',
         'not null' => TRUE,
       ],
@@ -22,36 +24,36 @@ function auto_login_url_schema() {
         'unsigned' => TRUE,
         'not null' => TRUE,
         'default' => 0,
-        'description' => 'Primary Key: {users}.uid for user.',
+        'description' => 'The {users}.uid for the user.',
       ],
       'hash' => [
         'type' => 'varchar',
-        'length' => 100,
-        'not null' => FALSE,
+        'length' => 255,
+        'not null' => TRUE,
         'default' => '',
-        'description' => 'Unique hash tag for the generated link.',
+        'description' => 'Cryptographic hash for the auto login token.',
       ],
       'destination' => [
-        'type' => 'varchar',
-        'length' => 1000,
-        'not null' => FALSE,
-        'default' => '',
-        'description' => 'The destination after user login.',
+        'type' => 'text',
+        'not null' => TRUE,
+        'description' => 'The destination URL after successful login.',
       ],
       'timestamp' => [
         'type' => 'int',
         'not null' => TRUE,
         'default' => 0,
-        'description' => 'Timestamp of the creation of the auto login link.',
+        'description' => 'Unix timestamp when the token was created.',
       ],
     ],
-    'indexes' => [
-      'hash_index' => ['hash'],
-      'timestamp_index' => ['timestamp'],
-    ],
     'primary key' => ['id'],
+    'indexes' => [
+      'hash_lookup' => ['hash'],
+      'uid_lookup' => ['uid'],
+      'timestamp_cleanup' => ['timestamp'],
+      'uid_timestamp' => ['uid', 'timestamp'],
+    ],
     'foreign keys' => [
-      'user' => [
+      'auto_login_user' => [
         'table' => 'users',
         'columns' => ['uid' => 'uid'],
       ],
@@ -62,21 +64,95 @@ function auto_login_url_schema() {
 }
 
 /**
- * Add token length variable [2016-04-06].
+ * Implements hook_install().
  */
-function auto_login_url_update_8001() {
-  $config_factory = \Drupal::configFactory();
-  $config = $config_factory->getEditable('auto_login_url.settings');
-  $config->set('token_length', 64);
-  $config->save(TRUE);
+function auto_login_url_install(): void {
+  \Drupal::logger('auto_login_url')->info('Auto Login URL module installed successfully.');
 }
 
 /**
- * Reset secret [2017-04-03].
+ * Implements hook_uninstall().
  */
-function auto_login_url_update_8002() {
+function auto_login_url_uninstall(): void {
+  // Clean up any remaining configuration.
+  \Drupal::configFactory()->getEditable('auto_login_url.settings')->delete();
+  \Drupal::logger('auto_login_url')->info('Auto Login URL module uninstalled and configuration cleaned up.');
+}
+
+/**
+ * Update 8001: Add token length configuration.
+ */
+function auto_login_url_update_8001(): void {
+  $config_factory = \Drupal::configFactory();
+  $config = $config_factory->getEditable('auto_login_url.settings');
+  
+  if (!$config->get('token_length')) {
+    $config->set('token_length', 64);
+    $config->save(TRUE);
+  }
+}
+
+/**
+ * Update 8002: Reset secret for security.
+ */
+function auto_login_url_update_8002(): void {
   $config_factory = \Drupal::configFactory();
   $config = $config_factory->getEditable('auto_login_url.settings');
   $config->set('secret', '');
   $config->save(TRUE);
+}
+
+/**
+ * Update 10001: Improve database schema for Drupal 10+.
+ */
+function auto_login_url_update_10001(): void {
+  $database = \Drupal::database();
+  $schema = $database->schema();
+
+  // Add new indexes for better performance.
+  if (!$schema->indexExists('auto_login_url', 'uid_timestamp')) {
+    $schema->addIndex('auto_login_url', 'uid_timestamp', ['uid', 'timestamp'], [
+      'indexes' => [
+        'uid_timestamp' => ['uid', 'timestamp'],
+      ],
+    ]);
+  }
+
+  // Extend hash field length for future compatibility.
+  $schema->changeField('auto_login_url', 'hash', 'hash', [
+    'type' => 'varchar',
+    'length' => 255,
+    'not null' => TRUE,
+    'default' => '',
+    'description' => 'Cryptographic hash for the auto login token.',
+  ]);
+
+  \Drupal::logger('auto_login_url')->info('Database schema updated for Drupal 10+ compatibility.');
+}
+
+/**
+ * Update 11001: Drupal 11 compatibility updates.
+ */
+function auto_login_url_update_11001(): void {
+  // Ensure configuration is compatible with Drupal 11.
+  $config_factory = \Drupal::configFactory();
+  $config = $config_factory->getEditable('auto_login_url.settings');
+  
+  // Set default values for any missing configuration.
+  $defaults = [
+    'secret' => '',
+    'expiration' => 2592000,
+    'delete' => FALSE,
+    'token_length' => 64,
+  ];
+
+  foreach ($defaults as $key => $default_value) {
+    if ($config->get($key) === NULL) {
+      $config->set($key, $default_value);
+    }
+  }
+
+  $config->save(TRUE);
+  
+  \Drupal::logger('auto_login_url')->info('Configuration updated for Drupal 11 compatibility.');
 }

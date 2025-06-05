@@ -1,6 +1,7 @@
 auto_login_url.settings:
   title: 'Auto Login URL'
-  description: 'Configure settings for Auto Login URL module.'
+  description: 'Configure secure auto login URL settings and manage tokens.'
   route_name: auto_login_url.settings
   base_route: entity.user.collection
   parent: user.admin_index
+  weight: 10

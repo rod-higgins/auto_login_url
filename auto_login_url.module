@@ -24,16 +24,42 @@ function auto_login_url_help(string $route_name, RouteMatchInterface $route_matc
 
 /**
  * Wrapper function for AutoLoginUrlCreate::create().
+ *
+ * @param int $uid
+ *   The user ID.
+ * @param string $destination
+ *   The destination URL.
+ * @param bool $absolute
+ *   Whether to generate an absolute URL.
+ *
+ * @return string
+ *   The auto login URL.
+ *
+ * @throws \Drupal\auto_login_url\Exception\AutoLoginUrlException
+ *   Thrown when URL creation fails.
  */
 function auto_login_url_create(int $uid, string $destination, bool $absolute = FALSE): string {
+  /** @var \Drupal\auto_login_url\AutoLoginUrlCreate $alu_service */
   $alu_service = \Drupal::service('auto_login_url.create');
   return $alu_service->create($uid, $destination, $absolute);
 }
 
 /**
  * Wrapper function for AutoLoginUrlCreate::convertText().
+ *
+ * @param int $uid
+ *   The user ID.
+ * @param string $text
+ *   The text to convert.
+ *
+ * @return string
+ *   The converted text.
+ *
+ * @throws \Drupal\auto_login_url\Exception\AutoLoginUrlException
+ *   Thrown when conversion fails.
  */
 function auto_login_url_convert_text(int $uid, string $text): string {
+  /** @var \Drupal\auto_login_url\AutoLoginUrlCreate $alu_service */
   $alu_service = \Drupal::service('auto_login_url.create');
   return $alu_service->convertText($uid, $text);
 }
@@ -42,13 +68,17 @@ function auto_login_url_convert_text(int $uid, string $text): string {
  * Implements hook_cron().
  */
 function auto_login_url_cron(): void {
-  $config = \Drupal::config('auto_login_url.settings');
-
-  // Delete over one month auto logins.
-  $connection = \Drupal::database();
-  $connection->delete('auto_login_url')
-    ->condition('timestamp', time() - $config->get('expiration'), '<=')
-    ->execute();
+  /** @var \Drupal\auto_login_url\AutoLoginUrlLogin $login_service */
+  $login_service = \Drupal::service('auto_login_url.login');
+  
+  $deleted_count = $login_service->cleanupExpiredTokens();
+  
+  if ($deleted_count > 0) {
+    \Drupal::logger('auto_login_url')
+      ->info('Cleaned up @count expired auto login URLs during cron', [
+        '@count' => $deleted_count,
+      ]);
+  }
 }
 
 /**

@@ -1,110 +1,414 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Drupal\auto_login_url;
 
-use Drupal\auto_login_url\AutoLoginUrlGeneral;
 use Drupal\Component\Utility\Crypt;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Database\Connection;
-use Drupal\Core\Url;
+use Drupal\Core\Logger\LoggerChannelFactoryInterface;
+use Drupal\Core\Logger\LoggerChannelInterface;
+use Drupal\Core\Session\UserSessionInterface;
 use Drupal\Core\Site\Settings;
+use Drupal\Core\Url;
 use Drupal\user\Entity\User;
+use Drupal\user\UserAuthenticationInterface;
+use Drupal\user\UserInterface;
 
 /**
- * Class AutoLoginUrlLogin.
+ * Service for handling auto login URL authentication.
  *
  * @package Drupal\auto_login_url
  */
-class AutoLoginUrlLogin {
+final class AutoLoginUrlLogin {
 
   /**
    * The config factory service.
-   *
-   * @var \Drupal\Core\Config\ConfigFactoryInterface
    */
-  protected $configFactory;
+  private ConfigFactoryInterface $configFactory;
 
   /**
    * The database connection.
-   *
-   * @var \Drupal\Core\Database\Connection
    */
-  protected $connection;
+  private Connection $connection;
 
   /**
    * The Auto Login Url General service.
-   *
-   * @var \Drupal\auto_login_url\AutoLoginUrlGeneral
    */
-  protected $autoLoginUrlGeneral;
+  private AutoLoginUrlGeneral $autoLoginUrlGeneral;
 
   /**
-   * Constructor.
+   * The user authentication service.
    */
-  public function __construct(ConfigFactoryInterface $config_factory, Connection $connection, AutoLoginUrlGeneral $auto_login_url_general) {
+  private UserAuthenticationInterface $userAuthentication;
+
+  /**
+   * The current user session.
+   */
+  private UserSessionInterface $currentUser;
+
+  /**
+   * The logger channel.
+   */
+  private LoggerChannelInterface $logger;
+
+  /**
+   * Constructs an AutoLoginUrlLogin object.
+   *
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
+   *   The config factory service.
+   * @param \Drupal\Core\Database\Connection $connection
+   *   The database connection.
+   * @param \Drupal\auto_login_url\AutoLoginUrlGeneral $auto_login_url_general
+   *   The Auto Login Url General service.
+   * @param \Drupal\user\UserAuthenticationInterface $user_authentication
+   *   The user authentication service.
+   * @param \Drupal\Core\Session\UserSessionInterface $current_user
+   *   The current user session.
+   * @param \Drupal\Core\Logger\LoggerChannelFactoryInterface $logger_factory
+   *   The logger factory service.
+   */
+  public function __construct(
+    ConfigFactoryInterface $config_factory,
+    Connection $connection,
+    AutoLoginUrlGeneral $auto_login_url_general,
+    UserAuthenticationInterface $user_authentication,
+    UserSessionInterface $current_user,
+    LoggerChannelFactoryInterface $logger_factory
+  ) {
     $this->configFactory = $config_factory;
     $this->connection = $connection;
     $this->autoLoginUrlGeneral = $auto_login_url_general;
+    $this->userAuthentication = $user_authentication;
+    $this->currentUser = $current_user;
+    $this->logger = $logger_factory->get('auto_login_url');
   }
 
   /**
-   * Get destination URL for autologin hash.
+   * Attempts to log in a user with the provided hash.
    *
    * @param int $uid
-   *   User id.
+   *   The user ID.
    * @param string $hash
-   *   Hash string.
+   *   The authentication hash.
    *
-   * @return string|bool
-   *   Destination or FALSE
+   * @return string|false
+   *   The destination URL on success, FALSE on failure.
    */
-  public function login($uid, $hash) {
+  public function login(int $uid, string $hash): string|false {
+    // Validate inputs.
+    if (!$this->validateLoginParameters($uid, $hash)) {
+      return FALSE;
+    }
 
-    $config = $this->configFactory->get('auto_login_url.settings');
-
-    // Get ALU secret.
-    $auto_login_url_secret = $this->autoLoginUrlGeneral->getSecret();
-
-    // Get user password.
-    $password = $this->autoLoginUrlGeneral->getUserHash($uid);
-
-    // Create key.
-    $key = Settings::getHashSalt() . $auto_login_url_secret . $password;
-
-    // Get if the hash is in the db.
-    $result = $this->connection->select('auto_login_url', 'a')
-      ->fields('a', ['id', 'uid', 'destination'])
-      ->condition('hash', Crypt::hmacBase64($hash, $key), '=')
-      ->execute()
-      ->fetchAssoc();
-
-    if (!empty($result) && isset($result['uid'])) {
-      $account = User::load($result['uid']);
-      user_login_finalize($account);
-
-      // Update the user table timestamp noting user has logged in.
-      $this->connection->update('users_field_data')
-        ->fields(['login' => time()])
-        ->condition('uid', $result['uid'])
-        ->execute();
-
-      // Delete auto login URL, if option checked.
-      if ($config->get('delete')) {
-        $this->connection->delete('auto_login_url')
-          ->condition('id', [$result['id']])
-          ->execute();
+    try {
+      // Check if hash exists and is valid.
+      $login_data = $this->validateAndRetrieveLoginData($uid, $hash);
+      if ($login_data === FALSE) {
+        return FALSE;
       }
 
-      // Get destination URL.
-      $destination = urldecode($result['destination']);
-      $destination = (strpos($destination, 'http://') !== FALSE || strpos($destination, 'https://') !== FALSE) ?
-          $destination :
-          Url::fromUri('internal:/' . $destination, ['absolute' => TRUE])->toString();
+      // Check if token has expired.
+      if ($this->isTokenExpired($login_data['timestamp'])) {
+        $this->logger->warning('Expired auto login token used for user @uid', ['@uid' => $uid]);
+        $this->deleteLoginRecord($login_data['id']);
+        return FALSE;
+      }
+
+      // Load and validate user account.
+      $account = $this->loadAndValidateUser($uid);
+      if ($account === FALSE) {
+        return FALSE;
+      }
+
+      // Perform the login.
+      $this->performUserLogin($account);
+
+      // Handle post-login cleanup.
+      $this->handlePostLoginCleanup($login_data['id']);
+
+      // Generate destination URL.
+      $destination = $this->generateDestinationUrl($login_data['destination']);
+
+      $this->logger->info('Successful auto login for user @uid to destination @dest', [
+        '@uid' => $uid,
+        '@dest' => substr($destination, 0, 100),
+      ]);
 
       return $destination;
     }
+    catch (\Exception $e) {
+      $this->logger->error('Auto login failed for user @uid: @message', [
+        '@uid' => $uid,
+        '@message' => $e->getMessage(),
+      ]);
+      return FALSE;
+    }
+  }
 
-    return FALSE;
+  /**
+   * Validates login parameters.
+   *
+   * @param int $uid
+   *   The user ID.
+   * @param string $hash
+   *   The hash token.
+   *
+   * @return bool
+   *   TRUE if valid, FALSE otherwise.
+   */
+  private function validateLoginParameters(int $uid, string $hash): bool {
+    if (!$this->autoLoginUrlGeneral->validateUserId($uid)) {
+      $this->logger->warning('Invalid user ID @uid attempted for auto login', ['@uid' => $uid]);
+      return FALSE;
+    }
+
+    if (!$this->autoLoginUrlGeneral->validateHashFormat($hash)) {
+      $this->logger->warning('Invalid hash format attempted for user @uid', ['@uid' => $uid]);
+      return FALSE;
+    }
+
+    return TRUE;
+  }
+
+  /**
+   * Validates hash and retrieves login data from database.
+   *
+   * @param int $uid
+   *   The user ID.
+   * @param string $hash
+   *   The hash token.
+   *
+   * @return array|false
+   *   Login data array on success, FALSE on failure.
+   */
+  private function validateAndRetrieveLoginData(int $uid, string $hash): array|false {
+    // Generate the key for hash verification.
+    $auto_login_url_secret = $this->autoLoginUrlGeneral->getSecret();
+    $password = $this->autoLoginUrlGeneral->getUserHash($uid);
+    $key = Settings::getHashSalt() . $auto_login_url_secret . $password;
+
+    // Generate expected database hash.
+    $expected_hash_db = Crypt::hmacBase64($hash, $key);
+
+    // Query database for matching record.
+    try {
+      $result = $this->connection->select('auto_login_url', 'a')
+        ->fields('a', ['id', 'uid', 'destination', 'timestamp'])
+        ->condition('uid', $uid)
+        ->condition('hash', $expected_hash_db)
+        ->range(0, 1)
+        ->execute()
+        ->fetchAssoc();
+
+      if (empty($result)) {
+        $this->logger->warning('No matching auto login record found for user @uid', ['@uid' => $uid]);
+        return FALSE;
+      }
+
+      // Use timing-safe comparison for additional security.
+      $stored_hash = $this->getStoredHash($result['id']);
+      if ($stored_hash === FALSE || !hash_equals($stored_hash, $expected_hash_db)) {
+        $this->logger->warning('Hash verification failed for user @uid', ['@uid' => $uid]);
+        return FALSE;
+      }
+
+      return $result;
+    }
+    catch (\Exception $e) {
+      $this->logger->error('Database error during login validation: @message', [
+        '@message' => $e->getMessage(),
+      ]);
+      return FALSE;
+    }
+  }
+
+  /**
+   * Retrieves stored hash for timing-safe comparison.
+   *
+   * @param string $record_id
+   *   The record ID.
+   *
+   * @return string|false
+   *   The stored hash or FALSE on failure.
+   */
+  private function getStoredHash(string $record_id): string|false {
+    try {
+      return $this->connection->select('auto_login_url', 'a')
+        ->fields('a', ['hash'])
+        ->condition('id', $record_id)
+        ->execute()
+        ->fetchField();
+    }
+    catch (\Exception $e) {
+      $this->logger->error('Failed to retrieve stored hash: @message', [
+        '@message' => $e->getMessage(),
+      ]);
+      return FALSE;
+    }
+  }
+
+  /**
+   * Checks if a token has expired.
+   *
+   * @param string $timestamp
+   *   The token creation timestamp.
+   *
+   * @return bool
+   *   TRUE if expired, FALSE otherwise.
+   */
+  private function isTokenExpired(string $timestamp): bool {
+    $config = $this->configFactory->get('auto_login_url.settings');
+    $expiration = (int) $config->get('expiration');
+    
+    return (time() - (int) $timestamp) > $expiration;
+  }
+
+  /**
+   * Loads and validates a user account.
+   *
+   * @param int $uid
+   *   The user ID.
+   *
+   * @return \Drupal\user\UserInterface|false
+   *   The user account or FALSE on failure.
+   */
+  private function loadAndValidateUser(int $uid): UserInterface|false {
+    $account = User::load($uid);
+    
+    if (!$account instanceof UserInterface) {
+      $this->logger->warning('Failed to load user account @uid', ['@uid' => $uid]);
+      return FALSE;
+    }
+
+    if ($account->isBlocked()) {
+      $this->logger->warning('Attempted auto login for blocked user @uid', ['@uid' => $uid]);
+      return FALSE;
+    }
+
+    if (!$account->isActive()) {
+      $this->logger->warning('Attempted auto login for inactive user @uid', ['@uid' => $uid]);
+      return FALSE;
+    }
+
+    return $account;
+  }
+
+  /**
+   * Performs the user login using modern Drupal APIs.
+   *
+   * @param \Drupal\user\UserInterface $account
+   *   The user account to log in.
+   */
+  private function performUserLogin(UserInterface $account): void {
+    // Use the modern authentication service instead of deprecated function.
+    $this->userAuthentication->finalize($account);
+
+    // Update user's last login timestamp using entity API.
+    $account->setLastLoginTime(time());
+    $account->save();
+  }
+
+  /**
+   * Handles post-login cleanup tasks.
+   *
+   * @param string $record_id
+   *   The login record ID.
+   */
+  private function handlePostLoginCleanup(string $record_id): void {
+    $config = $this->configFactory->get('auto_login_url.settings');
+    
+    // Delete the login record if configured to do so.
+    if ($config->get('delete')) {
+      $this->deleteLoginRecord($record_id);
+    }
+  }
+
+  /**
+   * Deletes a login record from the database.
+   *
+   * @param string $record_id
+   *   The record ID to delete.
+   */
+  private function deleteLoginRecord(string $record_id): void {
+    try {
+      $this->connection->delete('auto_login_url')
+        ->condition('id', $record_id)
+        ->execute();
+    }
+    catch (\Exception $e) {
+      $this->logger->error('Failed to delete login record @id: @message', [
+        '@id' => $record_id,
+        '@message' => $e->getMessage(),
+      ]);
+    }
+  }
+
+  /**
+   * Generates the destination URL after login.
+   *
+   * @param string $destination
+   *   The raw destination string.
+   *
+   * @return string
+   *   The formatted destination URL.
+   */
+  private function generateDestinationUrl(string $destination): string {
+    $destination = urldecode($destination);
+    
+    // Check if it's already an absolute URL.
+    if (str_starts_with($destination, 'http://') || str_starts_with($destination, 'https://')) {
+      return $destination;
+    }
+
+    // Generate absolute internal URL.
+    try {
+      // Remove leading slash if present for Url::fromUri.
+      $internal_path = ltrim($destination, '/');
+      return Url::fromUri('internal:/' . $internal_path, ['absolute' => TRUE])->toString();
+    }
+    catch (\Exception $e) {
+      $this->logger->warning('Failed to generate destination URL for @dest, using front page: @message', [
+        '@dest' => $destination,
+        '@message' => $e->getMessage(),
+      ]);
+      
+      // Fallback to front page.
+      return Url::fromRoute('<front>', [], ['absolute' => TRUE])->toString();
+    }
+  }
+
+  /**
+   * Cleans up expired tokens from the database.
+   *
+   * This method can be called during cron or other maintenance tasks.
+   *
+   * @return int
+   *   The number of expired tokens removed.
+   */
+  public function cleanupExpiredTokens(): int {
+    $config = $this->configFactory->get('auto_login_url.settings');
+    $expiration = (int) $config->get('expiration');
+    $cutoff_time = time() - $expiration;
+
+    try {
+      $deleted = $this->connection->delete('auto_login_url')
+        ->condition('timestamp', $cutoff_time, '<=')
+        ->execute();
+
+      if ($deleted > 0) {
+        $this->logger->info('Cleaned up @count expired auto login tokens', ['@count' => $deleted]);
+      }
+
+      return $deleted;
+    }
+    catch (\Exception $e) {
+      $this->logger->error('Failed to cleanup expired tokens: @message', [
+        '@message' => $e->getMessage(),
+      ]);
+      return 0;
+    }
   }
 
 }

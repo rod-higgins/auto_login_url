@@ -1,144 +1,370 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Drupal\auto_login_url;
 
 use Drupal\Component\Utility\Crypt;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Database\Connection;
+use Drupal\Core\Logger\LoggerChannelFactoryInterface;
+use Drupal\Core\Logger\LoggerChannelInterface;
 use Drupal\Core\Site\Settings;
 use Drupal\Core\Url;
+use Drupal\auto_login_url\Exception\AutoLoginUrlException;
 
 /**
- * Class AutoLoginUrlCreate.
+ * Service for creating auto login URLs.
  *
  * @package Drupal\auto_login_url
  */
-class AutoLoginUrlCreate {
+final class AutoLoginUrlCreate {
 
   /**
-   * Drupal\Core\Database\Connection definition.
-   *
-   * @var \Drupal\Core\Database\Connection
+   * Maximum attempts to generate a unique hash.
    */
-  protected $connection;
+  private const MAX_HASH_GENERATION_ATTEMPTS = 10;
+
+  /**
+   * The database connection.
+   */
+  private Connection $connection;
 
   /**
    * The config factory service.
-   *
-   * @var \Drupal\Core\Config\ConfigFactoryInterface
    */
-  protected $configFactory;
+  private ConfigFactoryInterface $configFactory;
 
   /**
    * The Auto Login Url General service.
-   *
-   * @var \Drupal\auto_login_url\AutoLoginUrlGeneral
    */
-  protected $autoLoginUrlGeneral;
+  private AutoLoginUrlGeneral $autoLoginUrlGeneral;
 
   /**
-   * Constructor.
+   * The logger channel.
    */
-  public function __construct(Connection $connection, ConfigFactoryInterface $config_factory, AutoLoginUrlGeneral $auto_login_url_general) {
+  private LoggerChannelInterface $logger;
+
+  /**
+   * Constructs an AutoLoginUrlCreate object.
+   *
+   * @param \Drupal\Core\Database\Connection $connection
+   *   The database connection.
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
+   *   The config factory service.
+   * @param \Drupal\auto_login_url\AutoLoginUrlGeneral $auto_login_url_general
+   *   The Auto Login Url General service.
+   * @param \Drupal\Core\Logger\LoggerChannelFactoryInterface $logger_factory
+   *   The logger factory service.
+   */
+  public function __construct(
+    Connection $connection,
+    ConfigFactoryInterface $config_factory,
+    AutoLoginUrlGeneral $auto_login_url_general,
+    LoggerChannelFactoryInterface $logger_factory
+  ) {
     $this->connection = $connection;
     $this->configFactory = $config_factory;
     $this->autoLoginUrlGeneral = $auto_login_url_general;
+    $this->logger = $logger_factory->get('auto_login_url');
   }
 
   /**
-   * Create an auto login hash on demand.
+   * Creates an auto login URL for a user.
    *
    * @param int $uid
-   *   User id.
+   *   The user ID.
    * @param string $destination
-   *   Destination URL.
+   *   The destination URL after login.
    * @param bool $absolute
-   *   Absolute or relative link.
+   *   Whether to generate an absolute URL.
    *
    * @return string
-   *   Auto Login URL.
+   *   The auto login URL.
+   *
+   * @throws \Drupal\auto_login_url\Exception\AutoLoginUrlException
+   *   Thrown when URL creation fails.
    */
-  public function create($uid, $destination, $absolute = FALSE) {
-    $config = $this->configFactory->get('auto_login_url.settings');
+  public function create(int $uid, string $destination, bool $absolute = FALSE): string {
+    // Validate inputs.
+    $this->validateCreateParameters($uid, $destination);
 
-    // Get ALU secret.
+    try {
+      $config = $this->configFactory->get('auto_login_url.settings');
+      $token_length = (int) $config->get('token_length');
+
+      // Generate unique hash.
+      $hash_data = $this->generateUniqueHash($uid, $destination, $token_length);
+
+      // Store in database.
+      $this->storeHashInDatabase($uid, $hash_data['hash_db'], $destination);
+
+      // Generate and return URL.
+      $url = Url::fromRoute(
+        'auto_login_url.login',
+        ['uid' => $uid, 'hash' => $hash_data['hash_token']],
+        ['absolute' => $absolute]
+      )->toString();
+
+      $this->logger->info('Auto login URL created for user @uid', ['@uid' => $uid]);
+
+      return $url;
+    }
+    catch (\Exception $e) {
+      $this->logger->error('Failed to create auto login URL for user @uid: @message', [
+        '@uid' => $uid,
+        '@message' => $e->getMessage(),
+      ]);
+      throw new AutoLoginUrlException('Failed to create auto login URL: ' . $e->getMessage(), 0, $e);
+    }
+  }
+
+  /**
+   * Converts text by replacing links with auto login versions.
+   *
+   * @param int $uid
+   *   The user ID.
+   * @param string $text
+   *   The text containing links to convert.
+   *
+   * @return string
+   *   The text with converted auto login links.
+   *
+   * @throws \Drupal\auto_login_url\Exception\AutoLoginUrlException
+   *   Thrown when conversion fails.
+   */
+  public function convertText(int $uid, string $text): string {
+    if (!$this->autoLoginUrlGeneral->validateUserId($uid)) {
+      throw new AutoLoginUrlException('Invalid user ID provided for text conversion');
+    }
+
+    try {
+      global $base_root;
+      
+      if (empty($base_root)) {
+        $this->logger->warning('Base root not available for text conversion');
+        return $text;
+      }
+
+      // Pattern to match URLs but not images.
+      $pattern = '/' . preg_quote($base_root, '/') . '\/[^\s"\'<>]*/';
+
+      // Create converter object.
+      $converter = new AutoLoginUrlTextConverter($uid, $this);
+
+      // Replace URLs with auto login versions.
+      $converted_text = preg_replace_callback(
+        $pattern,
+        [$converter, 'convertUrl'],
+        $text
+      );
+
+      if ($converted_text === NULL) {
+        throw new AutoLoginUrlException('Failed to process text for auto login conversion');
+      }
+
+      return $converted_text;
+    }
+    catch (\Exception $e) {
+      $this->logger->error('Failed to convert text for user @uid: @message', [
+        '@uid' => $uid,
+        '@message' => $e->getMessage(),
+      ]);
+      throw new AutoLoginUrlException('Failed to convert text: ' . $e->getMessage(), 0, $e);
+    }
+  }
+
+  /**
+   * Validates parameters for URL creation.
+   *
+   * @param int $uid
+   *   The user ID.
+   * @param string $destination
+   *   The destination URL.
+   *
+   * @throws \Drupal\auto_login_url\Exception\AutoLoginUrlException
+   *   Thrown when validation fails.
+   */
+  private function validateCreateParameters(int $uid, string $destination): void {
+    if (!$this->autoLoginUrlGeneral->validateUserId($uid)) {
+      throw new AutoLoginUrlException('Invalid or non-existent user ID: ' . $uid);
+    }
+
+    if (empty($destination) || strlen($destination) > 1000) {
+      throw new AutoLoginUrlException('Invalid destination URL');
+    }
+
+    // Basic URL validation.
+    $destination = trim($destination);
+    if ($destination !== filter_var($destination, FILTER_SANITIZE_URL)) {
+      throw new AutoLoginUrlException('Destination contains invalid characters');
+    }
+  }
+
+  /**
+   * Generates a unique hash for the auto login URL.
+   *
+   * @param int $uid
+   *   The user ID.
+   * @param string $destination
+   *   The destination URL.
+   * @param int $token_length
+   *   The desired token length.
+   *
+   * @return array
+   *   Array containing 'hash_token' and 'hash_db'.
+   *
+   * @throws \Drupal\auto_login_url\Exception\AutoLoginUrlException
+   *   Thrown when unique hash generation fails.
+   */
+  private function generateUniqueHash(int $uid, string $destination, int $token_length): array {
     $auto_login_url_secret = $this->autoLoginUrlGeneral->getSecret();
-
-    // Get user password.
     $password = $this->autoLoginUrlGeneral->getUserHash($uid);
 
-    // Create key.
+    // Create cryptographic key.
     $key = Settings::getHashSalt() . $auto_login_url_secret . $password;
 
-    // Repeat until the hash that is saved in DB is unique.
-    $hash_helper = 0;
+    for ($attempt = 0; $attempt < self::MAX_HASH_GENERATION_ATTEMPTS; $attempt++) {
+      // Generate cryptographically secure random data.
+      $entropy = $this->generateSecureEntropy($uid, $destination, $attempt);
 
-    do {
-      $data = $uid . microtime(TRUE) . $destination . $hash_helper;
+      // Generate hash token.
+      $hash_token = $this->generateHashToken($entropy, $key, $token_length);
 
-      // Generate hash.
-      $hash = Crypt::hmacBase64($data, $key);
+      // Generate database hash for storage.
+      $hash_db = Crypt::hmacBase64($hash_token, $key);
 
-      // Get substring.
-      $hash = substr($hash, 0, $config->get('token_length'));
+      // Check uniqueness.
+      if ($this->isHashUnique($hash_db)) {
+        return [
+          'hash_token' => $hash_token,
+          'hash_db' => $hash_db,
+        ];
+      }
+    }
 
-      // Generate hash to save to DB.
-      $hash_db = Crypt::hmacBase64($hash, $key);
+    throw new AutoLoginUrlException('Failed to generate unique hash after ' . self::MAX_HASH_GENERATION_ATTEMPTS . ' attempts');
+  }
 
-      // Check hash is unique.
+  /**
+   * Generates secure entropy for hash creation.
+   *
+   * @param int $uid
+   *   The user ID.
+   * @param string $destination
+   *   The destination URL.
+   * @param int $attempt
+   *   The current attempt number.
+   *
+   * @return string
+   *   Secure entropy string.
+   */
+  private function generateSecureEntropy(int $uid, string $destination, int $attempt): string {
+    try {
+      // Use cryptographically secure random bytes.
+      $random_bytes = random_bytes(32);
+      $entropy_parts = [
+        $uid,
+        $destination,
+        time(),
+        $attempt,
+        bin2hex($random_bytes),
+        uniqid('', TRUE),
+      ];
+
+      return implode('|', $entropy_parts);
+    }
+    catch (\Exception $e) {
+      // Fallback if random_bytes fails.
+      $this->logger->warning('random_bytes failed, using fallback entropy generation: @message', [
+        '@message' => $e->getMessage(),
+      ]);
+
+      $entropy_parts = [
+        $uid,
+        $destination,
+        microtime(TRUE),
+        $attempt,
+        uniqid('', TRUE),
+        mt_rand(),
+      ];
+
+      return implode('|', $entropy_parts);
+    }
+  }
+
+  /**
+   * Generates a hash token from entropy.
+   *
+   * @param string $entropy
+   *   The entropy string.
+   * @param string $key
+   *   The cryptographic key.
+   * @param int $token_length
+   *   The desired token length.
+   *
+   * @return string
+   *   The generated hash token.
+   */
+  private function generateHashToken(string $entropy, string $key, int $token_length): string {
+    $hash = Crypt::hmacBase64($entropy, $key);
+    
+    // Ensure we don't exceed the hash length.
+    $max_length = min($token_length, strlen($hash));
+    
+    return substr($hash, 0, $max_length);
+  }
+
+  /**
+   * Checks if a hash is unique in the database.
+   *
+   * @param string $hash_db
+   *   The database hash to check.
+   *
+   * @return bool
+   *   TRUE if unique, FALSE if exists.
+   */
+  private function isHashUnique(string $hash_db): bool {
+    try {
       $result = $this->connection->select('auto_login_url', 'alu')
         ->fields('alu', ['hash'])
-        ->condition('alu.hash', $hash_db)
+        ->condition('hash', $hash_db)
+        ->range(0, 1)
         ->execute()
-        ->fetchAssoc();
+        ->fetchField();
 
-      // Increment value in case there will be a next iteration.
-      $hash_helper++;
+      return $result === FALSE;
+    }
+    catch (\Exception $e) {
+      $this->logger->error('Database error checking hash uniqueness: @message', [
+        '@message' => $e->getMessage(),
+      ]);
+      return FALSE;
+    }
+  }
 
-    } while (isset($result['hash']));
-
-    // Insert a new hash.
+  /**
+   * Stores the hash in the database.
+   *
+   * @param int $uid
+   *   The user ID.
+   * @param string $hash_db
+   *   The database hash.
+   * @param string $destination
+   *   The destination URL.
+   *
+   * @throws \Exception
+   *   Thrown when database insertion fails.
+   */
+  private function storeHashInDatabase(int $uid, string $hash_db, string $destination): void {
     $this->connection->insert('auto_login_url')
-      ->fields(['uid', 'hash', 'destination', 'timestamp'])
-      ->values([
+      ->fields([
         'uid' => $uid,
         'hash' => $hash_db,
         'destination' => $destination,
         'timestamp' => time(),
       ])
       ->execute();
-
-    return Url::fromRoute('auto_login_url.login', ['uid' => $uid, 'hash' => $hash], ['absolute' => $absolute])->toString();
-  }
-
-  /**
-   * Convert a whole text (E.g. mail with autologin links).
-   *
-   * @param int $uid
-   *   User id.
-   * @param string $text
-   *   Text to change links to.
-   *
-   * @return string
-   *   The text with changed links.
-   */
-  public function convertText($uid, $text) {
-
-    global $base_root;
-    // A pattern to convert links, but not images.
-    // I am not very sure about that.
-    $pattern = '/' . str_replace('/', '\\/', $base_root) . '\\/[^\s^"^\']*/';
-
-    // Create a new object and pass the uid.
-    $current_conversion = new AutoLoginUrlConvertTextClass($uid);
-
-    // Replace text with regex/callback.
-    $text = preg_replace_callback(
-      $pattern,
-      [&$current_conversion, 'replace'],
-      $text);
-
-    return $text;
   }
 
 }
