@@ -419,16 +419,18 @@ When reporting issues, please include:
 ### Professional Support
 For professional support, custom development, or consulting services, contact the module maintainer through their [Drupal.org profile](https://drupal.org/user/1538394).
 
----
+### Author/Maintainers:
 
-**Author/Maintainers:** 
+- Thanos Nokas [Matrixlord](https://www.drupal.org/u/matrixlord)
+- Rod Higgins [Code Poet](https://www.drupal.org/u/code-poet)
+- Francesco Placella [plach](https://www.drupal.org/u/plach)
+- Panagiotis Moutsopoulos [vensires](https://www.drupal.org/u/vensires)
+- Michael Anello [ultimike](https://www.drupal.org/u/ultimike)
 
-Thanos Nokas ([Matrixlord](https://www.drupal.org/u/matrixlord))
-Rod Higgins ([Code Poet](https://www.drupal.org/u/code-poet))
-Francesco Placella ([plach](https://www.drupal.org/u/plach))
-Panagiotis Moutsopoulos ([vensires](https://www.drupal.org/u/vensires))
-Michael Anello ([ultimike](https://www.drupal.org/u/ultimike))
+### License:
 
-**License:** GPL-2.0-or-later
+GPL-2.0-or-later
 
-**Project Page:** https://www.drupal.org/project/auto_login_url
+### Project Page:
+
+https://www.drupal.org/project/auto_login_url
