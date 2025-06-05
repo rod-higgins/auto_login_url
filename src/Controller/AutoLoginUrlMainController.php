@@ -60,7 +60,7 @@ final class AutoLoginUrlMainController extends ControllerBase {
     KillSwitch $kill_switch,
     AutoLoginUrlGeneral $auto_login_url_general,
     AutoLoginUrlLogin $auto_login_url_login,
-    LoggerChannelFactoryInterface $logger_factory
+    LoggerChannelFactoryInterface $logger_factory,
   ) {
     $this->killSwitch = $kill_switch;
     $this->autoLoginUrlGeneral = $auto_login_url_general;
@@ -163,7 +163,7 @@ final class AutoLoginUrlMainController extends ControllerBase {
   private function checkFloodProtection(): void {
     if ($this->autoLoginUrlGeneral->checkFlood()) {
       $client_ip = $this->autoLoginUrlGeneral->getClientIp();
-      
+
       $this->logger->warning('Auto login blocked due to flood protection for IP @ip', [
         '@ip' => $client_ip,
       ]);
@@ -243,7 +243,7 @@ final class AutoLoginUrlMainController extends ControllerBase {
   private function sanitizeDestination(string $destination): string {
     // Remove any potentially dangerous characters.
     $destination = filter_var($destination, FILTER_SANITIZE_URL);
-    
+
     if (empty($destination)) {
       $this->logger->warning('Invalid destination URL, redirecting to front page');
       return '/';
@@ -276,7 +276,8 @@ final class AutoLoginUrlMainController extends ControllerBase {
       '#type' => 'markup',
       '#markup' => $this->t('Auto Login URL service is operational'),
       '#cache' => [
-        'max-age' => 300, // Cache for 5 minutes.
+    // Cache for 5 minutes.
+        'max-age' => 300,
       ],
     ];
   }

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Drupal\auto_login_url;
 
-use Drupal\auto_login_url\AutoLoginUrlCreate;
 use Drupal\auto_login_url\Exception\AutoLoginUrlException;
 
 /**
@@ -48,7 +47,7 @@ final class AutoLoginUrlTextConverter {
    */
   public function convertUrl(array $matches): string {
     $url = $matches[0] ?? '';
-    
+
     if (empty($url)) {
       return $url;
     }

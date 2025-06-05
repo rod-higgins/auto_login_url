@@ -62,9 +62,9 @@ final class AutoLoginUrlTokenTest extends KernelTestBase {
    */
   public function testAutoLoginUrlToken(): void {
     $text = 'Click here to login: [user:auto-login-url-token]';
-    
+
     $result = $this->tokenService->replace($text, ['user' => $this->testUser]);
-    
+
     $this->assertNotEquals($text, $result);
     $this->assertStringContains('autologinurl', $result);
     $this->assertStringContains((string) $this->testUser->id(), $result);
@@ -76,9 +76,9 @@ final class AutoLoginUrlTokenTest extends KernelTestBase {
    */
   public function testAutoLoginUrlAccountEditToken(): void {
     $text = 'Edit your profile: [user:auto-login-url-account-edit-token]';
-    
+
     $result = $this->tokenService->replace($text, ['user' => $this->testUser]);
-    
+
     $this->assertNotEquals($text, $result);
     $this->assertStringContains('autologinurl', $result);
     $this->assertStringContains((string) $this->testUser->id(), $result);
@@ -90,19 +90,19 @@ final class AutoLoginUrlTokenTest extends KernelTestBase {
    */
   public function testMultipleTokenReplacement(): void {
     $text = 'Home: [user:auto-login-url-token] | Edit: [user:auto-login-url-account-edit-token]';
-    
+
     $result = $this->tokenService->replace($text, ['user' => $this->testUser]);
-    
+
     $this->assertNotEquals($text, $result);
-    
+
     // Should have two different auto login URLs.
     $autologinCount = substr_count($result, 'autologinurl');
     $this->assertEquals(2, $autologinCount);
-    
+
     // Extract the two URLs and verify they're different.
     preg_match_all('/https?:\/\/[^\s]+autologinurl[^\s]+/', $result, $matches);
     $urls = $matches[0];
-    
+
     $this->assertCount(2, $urls);
     $this->assertNotEquals($urls[0], $urls[1]);
   }
@@ -115,15 +115,16 @@ final class AutoLoginUrlTokenTest extends KernelTestBase {
     $blockedUser = User::create([
       'name' => 'blockeduser',
       'mail' => 'blocked@example.com',
-      'status' => 0, // Blocked
+    // Blocked.
+      'status' => 0,
       'pass' => 'password123',
     ]);
     $blockedUser->save();
 
     $text = 'Login: [user:auto-login-url-token]';
-    
+
     $result = $this->tokenService->replace($text, ['user' => $blockedUser]);
-    
+
     // Should return empty token or original token depending on error handling.
     $this->assertIsString($result);
   }
@@ -133,20 +134,20 @@ final class AutoLoginUrlTokenTest extends KernelTestBase {
    */
   public function testTokenInfo(): void {
     $tokenInfo = auto_login_url_token_info();
-    
+
     $this->assertIsArray($tokenInfo);
     $this->assertArrayHasKey('tokens', $tokenInfo);
     $this->assertArrayHasKey('user', $tokenInfo['tokens']);
-    
+
     $userTokens = $tokenInfo['tokens']['user'];
-    
+
     $this->assertArrayHasKey('auto-login-url-token', $userTokens);
     $this->assertArrayHasKey('auto-login-url-account-edit-token', $userTokens);
-    
+
     // Check token definitions.
     $this->assertEquals('Auto Login URL', $userTokens['auto-login-url-token']['name']);
     $this->assertEquals('Auto Login URL account edit', $userTokens['auto-login-url-account-edit-token']['name']);
-    
+
     $this->assertArrayHasKey('description', $userTokens['auto-login-url-token']);
     $this->assertArrayHasKey('description', $userTokens['auto-login-url-account-edit-token']);
   }
@@ -168,11 +169,11 @@ Thank you!
 EOF;
 
     $result = $this->tokenService->replace($text, ['user' => $this->testUser]);
-    
+
     $this->assertStringContains($this->testUser->getDisplayName(), $result);
     $this->assertStringContains($this->testUser->getEmail(), $result);
     $this->assertStringContains('autologinurl', $result);
-    
+
     // Should not contain any unreplaced tokens.
     $this->assertStringNotContains('[user:', $result);
   }
@@ -195,7 +196,7 @@ EOF;
     // Second token replacement should fail due to rate limiting.
     $text2 = 'Second: [user:auto-login-url-token]';
     $result2 = $this->tokenService->replace($text2, ['user' => $this->testUser]);
-    
+
     // Should return empty string or original token due to rate limiting.
     $this->assertStringNotContains('autologinurl', $result2);
   }
@@ -205,13 +206,13 @@ EOF;
    */
   public function testTokenReplacementGeneratesAbsoluteUrls(): void {
     $text = 'Login: [user:auto-login-url-token]';
-    
+
     $result = $this->tokenService->replace($text, ['user' => $this->testUser]);
-    
+
     // Should generate absolute URLs starting with http.
     preg_match('/https?:\/\/[^\s]+/', $result, $matches);
     $url = $matches[0] ?? '';
-    
+
     $this->assertNotEmpty($url);
     $this->assertStringStartsWith('http', $url);
   }
@@ -237,9 +238,9 @@ EOF;
 
       $text = 'Test: [user:auto-login-url-token]';
       $result = $this->tokenService->replace($text, ['user' => $this->testUser]);
-      
+
       $this->assertStringContains('autologinurl', $result);
-      
+
       // Extract and verify URL format.
       preg_match('/autologinurl\/\d+\/([^\s]+)/', $result, $matches);
       $hash = $matches[1] ?? '';
@@ -260,10 +261,10 @@ EOF;
     $mockUser->method('id')->willReturn($deletedUserId);
 
     $text = 'Login: [user:auto-login-url-token]';
-    
+
     // Should handle the error gracefully.
     $result = $this->tokenService->replace($text, ['user' => $mockUser]);
-    
+
     // Should not crash and should return safe content.
     $this->assertIsString($result);
   }
@@ -280,15 +281,15 @@ EOF;
     foreach ($tokens as $token => $expectedDestination) {
       $text = "Test: [user:{$token}]";
       $result = $this->tokenService->replace($text, ['user' => $this->testUser]);
-      
+
       $this->assertStringContains('autologinurl', $result);
-      
+
       // Extract URL and verify it was created (can't easily verify destination
       // without making the actual request, but we can verify URL structure).
       preg_match('/autologinurl\/(\d+)\/([^\s]+)/', $result, $matches);
       $uid = $matches[1] ?? '';
       $hash = $matches[2] ?? '';
-      
+
       $this->assertEquals((string) $this->testUser->id(), $uid);
       $this->assertNotEmpty($hash);
     }
@@ -315,15 +316,15 @@ EOF;
 
     // Replace tokens for all users.
     $startTime = microtime(TRUE);
-    
+
     foreach ($users as $user) {
       $result = $this->tokenService->replace($text, ['user' => $user]);
       $this->assertStringContains('autologinurl', $result);
     }
-    
+
     $endTime = microtime(TRUE);
     $duration = $endTime - $startTime;
-    
+
     // Should complete reasonably quickly (less than 5 seconds for 5 users).
     $this->assertLessThan(5.0, $duration);
   }
@@ -334,10 +335,10 @@ EOF;
   public function testTokenModuleIntegration(): void {
     // Test basic token browsing functionality.
     $tokenInfo = auto_login_url_token_info();
-    
+
     // Verify our tokens are properly structured for the token module.
     $this->assertIsArray($tokenInfo['tokens']['user']);
-    
+
     foreach ($tokenInfo['tokens']['user'] as $tokenName => $tokenData) {
       $this->assertArrayHasKey('name', $tokenData);
       $this->assertArrayHasKey('description', $tokenData);

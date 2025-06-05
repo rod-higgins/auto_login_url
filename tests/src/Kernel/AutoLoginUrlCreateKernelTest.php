@@ -65,7 +65,7 @@ final class AutoLoginUrlCreateKernelTest extends KernelTestBase {
    */
   public function testCreateBasicUrl(): void {
     $destination = 'user/' . $this->testUser->id();
-    
+
     $url = $this->urlCreateService->create(
       (int) $this->testUser->id(),
       $destination,
@@ -97,7 +97,7 @@ final class AutoLoginUrlCreateKernelTest extends KernelTestBase {
    */
   public function testCreateAbsoluteUrl(): void {
     $destination = '<front>';
-    
+
     $url = $this->urlCreateService->create(
       (int) $this->testUser->id(),
       $destination,
@@ -180,7 +180,8 @@ final class AutoLoginUrlCreateKernelTest extends KernelTestBase {
 
     $this->urlCreateService->create(
       (int) $this->testUser->id(),
-      '', // Empty destination
+    // Empty destination.
+      '',
       FALSE
     );
   }
@@ -189,7 +190,8 @@ final class AutoLoginUrlCreateKernelTest extends KernelTestBase {
    * @covers ::create
    */
   public function testCreateWithLongDestination(): void {
-    $longDestination = str_repeat('a', 1001); // Over 1000 characters
+    // Over 1000 characters.
+    $longDestination = str_repeat('a', 1001);
 
     $this->expectException(AutoLoginUrlException::class);
     $this->expectExceptionMessage('Invalid destination URL');
@@ -215,9 +217,9 @@ final class AutoLoginUrlCreateKernelTest extends KernelTestBase {
         'user/' . $this->testUser->id(),
         FALSE
       );
-      
+
       $urls[] = $url;
-      
+
       // Extract hash from URL.
       preg_match('/autologinurl\/\d+\/([^\/]+)/', $url, $matches);
       $hashes[] = $matches[1] ?? '';
@@ -225,10 +227,10 @@ final class AutoLoginUrlCreateKernelTest extends KernelTestBase {
 
     // All URLs should be different.
     $this->assertEquals(count($urls), count(array_unique($urls)));
-    
+
     // All hashes should be different.
     $this->assertEquals(count($hashes), count(array_unique($hashes)));
-    
+
     // All hashes should be non-empty.
     foreach ($hashes as $hash) {
       $this->assertNotEmpty($hash);
@@ -252,11 +254,11 @@ final class AutoLoginUrlCreateKernelTest extends KernelTestBase {
     );
 
     $this->assertNotEmpty($url);
-    
+
     // Extract hash and verify it's approximately the right length.
     preg_match('/autologinurl\/\d+\/([^\/]+)/', $url, $matches);
     $hash = $matches[1] ?? '';
-    
+
     // Hash might be base64 encoded, so length could vary slightly.
     $this->assertGreaterThan(20, strlen($hash));
     $this->assertLessThan(50, strlen($hash));
@@ -278,7 +280,7 @@ final class AutoLoginUrlCreateKernelTest extends KernelTestBase {
       'destination1',
       FALSE
     );
-    
+
     $this->urlCreateService->create(
       (int) $this->testUser->id(),
       'destination2',
@@ -304,7 +306,7 @@ final class AutoLoginUrlCreateKernelTest extends KernelTestBase {
     $base_root = 'https://example.com';
 
     $originalText = 'Visit https://example.com/user/' . $this->testUser->id() . ' for your profile.';
-    
+
     $convertedText = $this->urlCreateService->convertText(
       (int) $this->testUser->id(),
       $originalText
@@ -322,9 +324,9 @@ final class AutoLoginUrlCreateKernelTest extends KernelTestBase {
     global $base_root;
     $base_root = 'https://example.com';
 
-    $originalText = 'Visit https://example.com/user/' . $this->testUser->id() . 
+    $originalText = 'Visit https://example.com/user/' . $this->testUser->id() .
                    ' and https://example.com/admin/content for more options.';
-    
+
     $convertedText = $this->urlCreateService->convertText(
       (int) $this->testUser->id(),
       $originalText
@@ -353,7 +355,7 @@ final class AutoLoginUrlCreateKernelTest extends KernelTestBase {
     $base_root = 'https://example.com';
 
     $originalText = 'See image at https://example.com/files/photo.jpg and page https://example.com/user/' . $this->testUser->id();
-    
+
     $convertedText = $this->urlCreateService->convertText(
       (int) $this->testUser->id(),
       $originalText
@@ -362,7 +364,7 @@ final class AutoLoginUrlCreateKernelTest extends KernelTestBase {
     // Should convert the user page but not the image.
     $this->assertStringContains('photo.jpg', $convertedText);
     $this->assertStringContains('autologinurl', $convertedText);
-    
+
     // Only one URL should be converted.
     $autologinCount = substr_count($convertedText, 'autologinurl');
     $this->assertEquals(1, $autologinCount);
@@ -475,7 +477,7 @@ final class AutoLoginUrlCreateKernelTest extends KernelTestBase {
         ->countQuery()
         ->execute()
         ->fetchField();
-      
+
       $this->assertEquals(1, $count);
     }
   }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\auto_login_url\Unit\Form;
 
+use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\auto_login_url\AutoLoginUrlGeneral;
 use Drupal\auto_login_url\AutoLoginUrlRateLimit;
 use Drupal\auto_login_url\Form\ConfigForm;
@@ -151,7 +152,7 @@ final class ConfigFormTest extends UnitTestCase {
   public function testValidateFormWithValidValues(): void {
     $form = [];
     $formState = $this->createMock(FormStateInterface::class);
-    
+
     $formState->method('getValue')->willReturnMap([
       ['auto_login_url_expiration', 7200],
       ['auto_login_url_token_length', 32],
@@ -171,9 +172,10 @@ final class ConfigFormTest extends UnitTestCase {
   public function testValidateFormWithInvalidExpiration(): void {
     $form = [];
     $formState = $this->createMock(FormStateInterface::class);
-    
+
     $formState->method('getValue')->willReturnMap([
-      ['auto_login_url_expiration', 1800], // Too short (30 minutes)
+    // Too short (30 minutes)
+      ['auto_login_url_expiration', 1800],
       ['auto_login_url_token_length', 32],
       ['auto_login_url_max_per_hour', 15],
       ['auto_login_url_secret', ''],
@@ -192,10 +194,11 @@ final class ConfigFormTest extends UnitTestCase {
   public function testValidateFormWithInvalidTokenLength(): void {
     $form = [];
     $formState = $this->createMock(FormStateInterface::class);
-    
+
     $formState->method('getValue')->willReturnMap([
       ['auto_login_url_expiration', 7200],
-      ['auto_login_url_token_length', 5], // Too short
+    // Too short.
+      ['auto_login_url_token_length', 5],
       ['auto_login_url_max_per_hour', 15],
       ['auto_login_url_secret', ''],
     ]);
@@ -213,11 +216,12 @@ final class ConfigFormTest extends UnitTestCase {
   public function testValidateFormWithInvalidRateLimit(): void {
     $form = [];
     $formState = $this->createMock(FormStateInterface::class);
-    
+
     $formState->method('getValue')->willReturnMap([
       ['auto_login_url_expiration', 7200],
       ['auto_login_url_token_length', 32],
-      ['auto_login_url_max_per_hour', 150], // Too high
+    // Too high.
+      ['auto_login_url_max_per_hour', 150],
       ['auto_login_url_secret', ''],
     ]);
 
@@ -234,12 +238,13 @@ final class ConfigFormTest extends UnitTestCase {
   public function testValidateFormWithWeakSecret(): void {
     $form = [];
     $formState = $this->createMock(FormStateInterface::class);
-    
+
     $formState->method('getValue')->willReturnMap([
       ['auto_login_url_expiration', 7200],
       ['auto_login_url_token_length', 32],
       ['auto_login_url_max_per_hour', 15],
-      ['auto_login_url_secret', 'password'], // Weak secret
+    // Weak secret.
+      ['auto_login_url_secret', 'password'],
     ]);
 
     $formState->expects($this->once())
@@ -255,12 +260,13 @@ final class ConfigFormTest extends UnitTestCase {
   public function testValidateFormWithShortSecret(): void {
     $form = [];
     $formState = $this->createMock(FormStateInterface::class);
-    
+
     $formState->method('getValue')->willReturnMap([
       ['auto_login_url_expiration', 7200],
       ['auto_login_url_token_length', 32],
       ['auto_login_url_max_per_hour', 15],
-      ['auto_login_url_secret', 'short'], // Too short
+    // Too short.
+      ['auto_login_url_secret', 'short'],
     ]);
 
     $formState->expects($this->once())
@@ -276,12 +282,16 @@ final class ConfigFormTest extends UnitTestCase {
   public function testValidateFormWithMultipleErrors(): void {
     $form = [];
     $formState = $this->createMock(FormStateInterface::class);
-    
+
     $formState->method('getValue')->willReturnMap([
-      ['auto_login_url_expiration', 100], // Too short
-      ['auto_login_url_token_length', 5], // Too short
-      ['auto_login_url_max_per_hour', 200], // Too high
-      ['auto_login_url_secret', 'weak'], // Too weak
+    // Too short.
+      ['auto_login_url_expiration', 100],
+    // Too short.
+      ['auto_login_url_token_length', 5],
+    // Too high.
+      ['auto_login_url_max_per_hour', 200],
+    // Too weak.
+      ['auto_login_url_secret', 'weak'],
     ]);
 
     $formState->expects($this->exactly(4))
@@ -296,7 +306,7 @@ final class ConfigFormTest extends UnitTestCase {
   public function testSubmitFormWithBasicConfig(): void {
     $form = [];
     $formState = $this->createMock(FormStateInterface::class);
-    
+
     $values = [
       'auto_login_url_expiration' => 7200,
       'auto_login_url_delete_on_use' => TRUE,
@@ -342,7 +352,7 @@ final class ConfigFormTest extends UnitTestCase {
   public function testSubmitFormWithSecretRegeneration(): void {
     $form = [];
     $formState = $this->createMock(FormStateInterface::class);
-    
+
     $values = [
       'auto_login_url_expiration' => 7200,
       'auto_login_url_delete_on_use' => FALSE,
@@ -351,7 +361,8 @@ final class ConfigFormTest extends UnitTestCase {
       'auto_login_url_enable_analytics' => TRUE,
       'auto_login_url_max_per_hour' => 10,
       'auto_login_url_secret' => '',
-      'regenerate_secret' => TRUE, // Regenerate secret
+    // Regenerate secret.
+      'regenerate_secret' => TRUE,
     ];
 
     $formState->method('getValues')->willReturn($values);
@@ -383,7 +394,7 @@ final class ConfigFormTest extends UnitTestCase {
     $messenger->expects($this->once())
       ->method('addWarning')
       ->with($this->stringContains('A new secret key has been generated'));
-    
+
     $parentForm->method('messenger')->willReturn($messenger);
 
     $parentForm->submitForm($form, $formState);
@@ -395,7 +406,7 @@ final class ConfigFormTest extends UnitTestCase {
   public function testSubmitFormWithCustomSecret(): void {
     $form = [];
     $formState = $this->createMock(FormStateInterface::class);
-    
+
     $values = [
       'auto_login_url_expiration' => 7200,
       'auto_login_url_delete_on_use' => FALSE,
@@ -435,7 +446,7 @@ final class ConfigFormTest extends UnitTestCase {
     $messenger->expects($this->once())
       ->method('addWarning')
       ->with($this->stringContains('Secret key has been updated'));
-    
+
     $parentForm->method('messenger')->willReturn($messenger);
 
     $parentForm->submitForm($form, $formState);
@@ -465,7 +476,7 @@ final class ConfigFormTest extends UnitTestCase {
     $messenger->expects($this->once())
       ->method('addStatus')
       ->with($this->stringContains('All rate limiting data has been cleared'));
-    
+
     $parentForm->method('messenger')->willReturn($messenger);
 
     $parentForm->clearRateLimits($form, $formState);
@@ -496,7 +507,7 @@ final class ConfigFormTest extends UnitTestCase {
     $messenger->expects($this->once())
       ->method('addError')
       ->with($this->stringContains('Failed to clear rate limiting data'));
-    
+
     $parentForm->method('messenger')->willReturn($messenger);
 
     $parentForm->clearRateLimits($form, $formState);
@@ -506,8 +517,8 @@ final class ConfigFormTest extends UnitTestCase {
    * @covers ::create
    */
   public function testCreate(): void {
-    $container = $this->createMock(\Symfony\Component\DependencyInjection\ContainerInterface::class);
-    
+    $container = $this->createMock(ContainerInterface::class);
+
     $container->method('get')->willReturnMap([
       ['config.factory', $this->configFactory],
       ['auto_login_url.general', $this->autoLoginUrlGeneral],
@@ -525,7 +536,8 @@ final class ConfigFormTest extends UnitTestCase {
   public function testFormElementStructure(): void {
     $config = $this->createMock(ImmutableConfig::class);
     $config->method('get')->willReturnMap([
-      ['token_length', NULL], // Test default handling
+    // Test default handling.
+      ['token_length', NULL],
       ['expiration', NULL],
       ['delete', NULL],
       ['validate_ip_address', NULL],
@@ -595,7 +607,7 @@ final class ConfigFormTest extends UnitTestCase {
     foreach ($edgeCases as $case) {
       $form = [];
       $formState = $this->createMock(FormStateInterface::class);
-      
+
       $formState->method('getValue')->willReturnMap([
         ['auto_login_url_expiration', $case['expiration']],
         ['auto_login_url_token_length', $case['token_length']],
@@ -605,7 +617,8 @@ final class ConfigFormTest extends UnitTestCase {
 
       if ($case['should_pass']) {
         $formState->expects($this->never())->method('setErrorByName');
-      } else {
+      }
+      else {
         $formState->expects($this->atLeastOnce())->method('setErrorByName');
       }
 

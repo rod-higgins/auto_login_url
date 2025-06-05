@@ -1,0 +1,57 @@
+{
+  "version": "0.2",
+  "language": "en",
+  "ignorePaths": [
+    "README.md",
+    "tests/README.md",
+    "composer.lock",
+    "vendor/**",
+    ".git/**"
+  ],
+  "ignoreWords": [
+    "drupal",
+    "contrib",
+    "autologinurl",
+    "uid",
+    "dest",
+    "bool",
+    "csrf",
+    "xss",
+    "hmac",
+    "phpcbf",
+    "phpcs",
+    "codebase",
+    "cron",
+    "login",
+    "logout",
+    "username",
+    "analytics",
+    "timestamp",
+    "ip",
+    "url",
+    "urls",
+    "api",
+    "config",
+    "admin",
+    "param",
+    "params",
+    "auth",
+    "uuid",
+    "repo",
+    "gitlab",
+    "ci",
+    "yml",
+    "phpunit",
+    "namespace",
+    "plugins",
+    "metadata",
+    "schemas"
+  ],
+  "dictionaries": ["php", "html", "css", "javascript"],
+  "languageSettings": [
+    {
+      "languageId": "php",
+      "allowCompoundWords": true
+    }
+  ]
+}

@@ -78,7 +78,7 @@ final class AutoLoginUrlCreate {
     AutoLoginUrlGeneral $auto_login_url_general,
     LoggerChannelFactoryInterface $logger_factory,
     AutoLoginUrlRateLimit $rate_limiter,
-    RequestStack $request_stack
+    RequestStack $request_stack,
   ) {
     $this->connection = $connection;
     $this->configFactory = $config_factory;
@@ -173,7 +173,7 @@ final class AutoLoginUrlCreate {
 
     try {
       global $base_root;
-      
+
       if (empty($base_root)) {
         $this->logger->warning('Base root not available for text conversion');
         return $text;
@@ -303,21 +303,23 @@ final class AutoLoginUrlCreate {
         $attempt,
         bin2hex($random_bytes),
         uniqid('', TRUE),
-        getmypid(), // Add process ID for additional entropy
+      // Add process ID for additional entropy.
+        getmypid(),
       ];
 
       return implode('|', $entropy_parts);
     }
     catch (\Exception $e) {
-      // Enhanced fallback with better logging
+      // Enhanced fallback with better logging.
       $this->logger->warning('random_bytes failed, using fallback entropy generation: @message', [
         '@message' => $e->getMessage(),
       ]);
-      
+
       $entropy_parts = [
         $uid,
         $destination,
-        hrtime(TRUE), // Use high-resolution time
+      // Use high-resolution time.
+        hrtime(TRUE),
         $attempt,
         uniqid('', TRUE),
         mt_rand(),
@@ -343,10 +345,10 @@ final class AutoLoginUrlCreate {
    */
   private function generateHashToken(string $entropy, string $key, int $token_length): string {
     $hash = Crypt::hmacBase64($entropy, $key);
-    
+
     // Ensure we don't exceed the hash length.
     $max_length = min($token_length, strlen($hash));
-    
+
     return substr($hash, 0, $max_length);
   }
 
@@ -393,7 +395,7 @@ final class AutoLoginUrlCreate {
    */
   private function storeHashInDatabase(int $uid, string $hash_db, string $destination): void {
     $request = $this->requestStack->getCurrentRequest();
-    
+
     $this->connection->insert('auto_login_url')
       ->fields([
         'uid' => $uid,

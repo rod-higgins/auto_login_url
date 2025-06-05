@@ -7,6 +7,7 @@ namespace Drupal\auto_login_url\Form;
 use Drupal\auto_login_url\AutoLoginUrlGeneral;
 use Drupal\auto_login_url\AutoLoginUrlRateLimit;
 use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Database\Connection;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
@@ -67,6 +68,11 @@ final class ConfigForm extends ConfigFormBase {
   private LoggerChannelInterface $logger;
 
   /**
+   * The database connection.
+   */
+  private Connection $database;
+
+  /**
    * Constructs a ConfigForm object.
    *
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
@@ -77,17 +83,21 @@ final class ConfigForm extends ConfigFormBase {
    *   The rate limiting service.
    * @param \Drupal\Core\Logger\LoggerChannelFactoryInterface $logger_factory
    *   The logger factory service.
+   * @param \Drupal\Core\Database\Connection $database
+   *   The database connection.
    */
   public function __construct(
     ConfigFactoryInterface $config_factory,
     AutoLoginUrlGeneral $auto_login_url_general,
     AutoLoginUrlRateLimit $rate_limiter,
-    LoggerChannelFactoryInterface $logger_factory
+    LoggerChannelFactoryInterface $logger_factory,
+    Connection $database
   ) {
     parent::__construct($config_factory);
     $this->autoLoginUrlGeneral = $auto_login_url_general;
     $this->rateLimiter = $rate_limiter;
     $this->logger = $logger_factory->get('auto_login_url');
+    $this->database = $database;
   }
 
   /**
@@ -98,7 +108,8 @@ final class ConfigForm extends ConfigFormBase {
       $container->get('config.factory'),
       $container->get('auto_login_url.general'),
       $container->get('auto_login_url.rate_limit'),
-      $container->get('logger.factory')
+      $container->get('logger.factory'),
+      $container->get('database')
     );
   }
 
@@ -305,6 +316,9 @@ final class ConfigForm extends ConfigFormBase {
     return parent::buildForm($form, $form_state);
   }
 
+  /**
+   * {@inheritdoc}
+   */
   public function validateForm(array &$form, FormStateInterface $form_state): void {
     parent::validateForm($form, $form_state);
 
@@ -458,16 +472,14 @@ final class ConfigForm extends ConfigFormBase {
    */
   public function cleanupAnalyticsData(array &$form, FormStateInterface $form_state): void {
     try {
-      $database = \Drupal::database();
-      
-      if (!$database->schema()->tableExists('auto_login_url_usage')) {
+      if (!$this->database->schema()->tableExists('auto_login_url_usage')) {
         $this->messenger()->addWarning($this->t('Analytics table does not exist.'));
         return;
       }
 
       // Clean up analytics data older than 6 months.
       $cutoff_time = time() - (6 * 30 * 24 * 60 * 60);
-      $deleted_count = $database->delete('auto_login_url_usage')
+      $deleted_count = $this->database->delete('auto_login_url_usage')
         ->condition('used_timestamp', $cutoff_time, '<=')
         ->execute();
 
@@ -523,17 +535,16 @@ final class ConfigForm extends ConfigFormBase {
    */
   private function getStatistics(): array {
     try {
-      $database = \Drupal::database();
       $config = $this->config('auto_login_url.settings');
       $expiration = (int) $config->get('expiration');
       $cutoff_time = time() - $expiration;
 
-      $total_urls = (int) $database->select('auto_login_url')
+      $total_urls = (int) $this->database->select('auto_login_url')
         ->countQuery()
         ->execute()
         ->fetchField();
 
-      $expired_urls = (int) $database->select('auto_login_url')
+      $expired_urls = (int) $this->database->select('auto_login_url')
         ->condition('timestamp', $cutoff_time, '<=')
         ->countQuery()
         ->execute()
@@ -542,8 +553,8 @@ final class ConfigForm extends ConfigFormBase {
       $active_urls = $total_urls - $expired_urls;
 
       $usage_records = 0;
-      if ($database->schema()->tableExists('auto_login_url_usage')) {
-        $usage_records = (int) $database->select('auto_login_url_usage')
+      if ($this->database->schema()->tableExists('auto_login_url_usage')) {
+        $usage_records = (int) $this->database->select('auto_login_url_usage')
           ->countQuery()
           ->execute()
           ->fetchField();

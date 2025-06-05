@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\auto_login_url\Unit;
 
+use Drupal\Core\Field\FieldItemListInterface;
+use Drupal\Core\Config\Config;
 use Drupal\auto_login_url\AutoLoginUrlGeneral;
-use Drupal\Component\Utility\Random;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\ImmutableConfig;
 use Drupal\Core\Entity\EntityStorageInterface;
@@ -15,7 +16,6 @@ use Drupal\Core\Flood\FloodInterface;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Drupal\Core\Logger\LoggerChannelInterface;
 use Drupal\Tests\UnitTestCase;
-use Drupal\user\Entity\User;
 use Drupal\user\UserInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -186,7 +186,7 @@ final class AutoLoginUrlGeneralTest extends UnitTestCase {
       ->with('secret')
       ->willReturn('');
 
-    $editableConfig = $this->getMockBuilder(\Drupal\Core\Config\Config::class)
+    $editableConfig = $this->getMockBuilder(Config::class)
       ->disableOriginalConstructor()
       ->getMock();
     $editableConfig->expects($this->once())
@@ -290,13 +290,20 @@ final class AutoLoginUrlGeneralTest extends UnitTestCase {
    */
   public function testValidateHashFormatWithInvalidHash(): void {
     $invalidHashes = [
-      '', // Empty
-      'short', // Too short
-      str_repeat('a', 129), // Too long
-      'abc@123', // Invalid character
-      'abc 123', // Space
-      'abc!123', // Special character
-      'abc.123', // Dot
+    // Empty.
+      '',
+    // Too short.
+      'short',
+    // Too long.
+      str_repeat('a', 129),
+    // Invalid character.
+      'abc@123',
+    // Space.
+      'abc 123',
+    // Special character.
+      'abc!123',
+    // Dot.
+      'abc.123',
     ];
 
     foreach ($invalidHashes as $hash) {
@@ -310,12 +317,12 @@ final class AutoLoginUrlGeneralTest extends UnitTestCase {
    */
   public function testGetUserHashWithValidUser(): void {
     $user = $this->createMock(UserInterface::class);
-    $passField = $this->createMock(\Drupal\Core\Field\FieldItemListInterface::class);
+    $passField = $this->createMock(FieldItemListInterface::class);
     $passField->method('isEmpty')->willReturn(FALSE);
     $passField->value = 'hashed-password';
     $user->method('get')->with('pass')->willReturn($passField);
 
-    // Mock the static User::load call
+    // Mock the static User::load call.
     $query = $this->createMock(QueryInterface::class);
     $query->method('accessCheck')->with(FALSE)->willReturnSelf();
     $query->method('condition')->willReturnSelf();
@@ -330,7 +337,7 @@ final class AutoLoginUrlGeneralTest extends UnitTestCase {
       ->willReturn($userStorage);
 
     // We'll need to test this differently since User::load is static
-    // For now, test the input validation
+    // For now, test the input validation.
     $result = $this->autoLoginUrlGeneral->getUserHash(0);
     $this->assertEquals('', $result);
   }

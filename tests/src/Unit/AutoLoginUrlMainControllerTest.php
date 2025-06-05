@@ -90,7 +90,7 @@ final class AutoLoginUrlMainControllerTest extends UnitTestCase {
    */
   public function testCreate(): void {
     $container = $this->createMock(ContainerInterface::class);
-    
+
     $container->method('get')->willReturnMap([
       ['page_cache_kill_switch', $this->killSwitch],
       ['auto_login_url.general', $this->autoLoginUrlGeneral],
@@ -401,7 +401,7 @@ final class AutoLoginUrlMainControllerTest extends UnitTestCase {
       'user/123' => RedirectResponse::class,
       '<front>' => RedirectResponse::class,
       'admin/content' => RedirectResponse::class,
-      
+
       // External URLs.
       'https://example.com' => TrustedRedirectResponse::class,
       'http://external.org/page' => TrustedRedirectResponse::class,
@@ -471,7 +471,7 @@ final class AutoLoginUrlMainControllerTest extends UnitTestCase {
     // Should not call further validation methods.
     $this->autoLoginUrlGeneral->expects($this->never())
       ->method('validateHashFormat');
-    
+
     $this->autoLoginUrlGeneral->expects($this->never())
       ->method('checkFlood');
 
@@ -498,10 +498,10 @@ final class AutoLoginUrlMainControllerTest extends UnitTestCase {
         ->willReturn($input);
 
       $response = $this->controller->login(123, 'valid-hash');
-      
+
       $this->assertInstanceOf(RedirectResponse::class, $response);
       $targetUrl = $response->getTargetUrl();
-      
+
       // URL should be sanitized appropriately.
       $this->assertIsString($targetUrl);
       $this->assertNotEmpty($targetUrl);

@@ -14,6 +14,7 @@ use Drupal\Core\Database\Query\Insert;
 use Drupal\Core\Database\Query\Select;
 use Drupal\Core\Database\Schema\Schema;
 use Drupal\Core\Database\StatementInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Drupal\Core\Logger\LoggerChannelInterface;
 use Drupal\Core\Session\UserSessionInterface;
@@ -66,6 +67,11 @@ final class AutoLoginUrlLoginTest extends UnitTestCase {
   private LoggerChannelInterface $logger;
 
   /**
+   * The mocked entity type manager.
+   */
+  private EntityTypeManagerInterface $entityTypeManager;
+
+  /**
    * The service under test.
    */
   private AutoLoginUrlLogin $urlLoginService;
@@ -83,6 +89,7 @@ final class AutoLoginUrlLoginTest extends UnitTestCase {
     $this->currentUser = $this->createMock(UserSessionInterface::class);
     $this->loggerFactory = $this->createMock(LoggerChannelFactoryInterface::class);
     $this->logger = $this->createMock(LoggerChannelInterface::class);
+    $this->entityTypeManager = $this->createMock(EntityTypeManagerInterface::class);
 
     $this->loggerFactory->method('get')
       ->with('auto_login_url')
@@ -94,7 +101,8 @@ final class AutoLoginUrlLoginTest extends UnitTestCase {
       $this->autoLoginUrlGeneral,
       $this->userAuthentication,
       $this->currentUser,
-      $this->loggerFactory
+      $this->loggerFactory,
+      $this->entityTypeManager
     );
   }
 
@@ -426,7 +434,8 @@ final class AutoLoginUrlLoginTest extends UnitTestCase {
     // Mock delete operation that throws exception.
     $delete = $this->createMock(Delete::class);
     $delete->method('condition')->willReturnSelf();
-    $delete->method('execute')->willThrowException(new \Exception('Database error'));
+    $delete->method('execute')
+      ->willThrowException(new \Exception('Database error'));
     $this->connection->method('delete')->willReturn($delete);
 
     $result = $this->urlLoginService->cleanupExpiredTokens();
@@ -478,7 +487,8 @@ final class AutoLoginUrlLoginTest extends UnitTestCase {
     $select->method('fields')->willReturnSelf();
     $select->method('condition')->willReturnSelf();
     $select->method('range')->willReturnSelf();
-    $select->method('execute')->willThrowException(new \Exception('Database error'));
+    $select->method('execute')
+      ->willThrowException(new \Exception('Database error'));
     $this->connection->method('select')->willReturn($select);
 
     $result = $this->urlLoginService->login(123, 'valid-hash');

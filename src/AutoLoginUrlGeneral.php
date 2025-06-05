@@ -10,7 +10,6 @@ use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Flood\FloodInterface;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Drupal\Core\Logger\LoggerChannelInterface;
-use Drupal\user\Entity\User;
 use Drupal\user\UserInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Request;
@@ -181,7 +180,7 @@ final class AutoLoginUrlGeneral {
       return '';
     }
 
-    $user = User::load($uid);
+    $user = $user_storage->load($uid);
     if (!$user instanceof UserInterface) {
       return '';
     }

@@ -71,7 +71,7 @@ final class AutoLoginUrlLoginKernelTest extends KernelTestBase {
    */
   public function testSuccessfulLogin(): void {
     $destination = 'user/' . $this->testUser->id();
-    
+
     // Create an auto login URL.
     $url = $this->urlCreateService->create(
       (int) $this->testUser->id(),
@@ -112,7 +112,8 @@ final class AutoLoginUrlLoginKernelTest extends KernelTestBase {
 
     // User should not be logged in.
     $currentUser = $this->container->get('current_user');
-    $this->assertEquals(0, $currentUser->id()); // Anonymous user
+    // Anonymous user.
+    $this->assertEquals(0, $currentUser->id());
   }
 
   /**
@@ -158,7 +159,8 @@ final class AutoLoginUrlLoginKernelTest extends KernelTestBase {
     // Set very short expiration.
     $config = $this->container->get('config.factory')
       ->getEditable('auto_login_url.settings');
-    $config->set('expiration', 1); // 1 second
+    // 1 second
+    $config->set('expiration', 1);
     $config->save();
 
     // Create URL.
@@ -347,7 +349,8 @@ final class AutoLoginUrlLoginKernelTest extends KernelTestBase {
     // Set short expiration.
     $config = $this->container->get('config.factory')
       ->getEditable('auto_login_url.settings');
-    $config->set('expiration', 3600); // 1 hour
+    // 1 hour
+    $config->set('expiration', 3600);
     $config->save();
 
     // Create some URLs.
@@ -361,7 +364,8 @@ final class AutoLoginUrlLoginKernelTest extends KernelTestBase {
 
     // Manually set some records as expired by updating timestamp.
     $database = $this->container->get('database');
-    $expiredTime = time() - 7200; // 2 hours ago
+    // 2 hours ago
+    $expiredTime = time() - 7200;
     $database->update('auto_login_url')
       ->fields(['timestamp' => $expiredTime])
       ->range(0, 2)
@@ -450,7 +454,8 @@ final class AutoLoginUrlLoginKernelTest extends KernelTestBase {
       '',
       'abc',
       'very-short',
-      str_repeat('a', 200), // Too long
+    // Too long.
+      str_repeat('a', 200),
       'contains spaces',
       'contains@special!chars',
     ];
@@ -495,7 +500,7 @@ final class AutoLoginUrlLoginKernelTest extends KernelTestBase {
       (int) $this->testUser->id(),
       $hash
     );
-    
+
     // Note: In kernel tests, IP validation might not work exactly as expected
     // due to the test environment, but we can verify the logic doesn't crash.
     $this->assertIsString($result);
@@ -520,7 +525,7 @@ final class AutoLoginUrlLoginKernelTest extends KernelTestBase {
       'user/' . $this->testUser->id(),
       FALSE
     );
-    
+
     $url2 = $this->urlCreateService->create(
       (int) $user2->id(),
       'user/' . $user2->id(),
@@ -530,7 +535,7 @@ final class AutoLoginUrlLoginKernelTest extends KernelTestBase {
     // Extract hashes.
     preg_match('/autologinurl\/(\d+)\/([^\/]+)/', $url1, $matches1);
     preg_match('/autologinurl\/(\d+)\/([^\/]+)/', $url2, $matches2);
-    
+
     $hash1 = $matches1[2];
     $hash2 = $matches2[2];
 
@@ -545,9 +550,9 @@ final class AutoLoginUrlLoginKernelTest extends KernelTestBase {
     // Each hash should work for its own user.
     $result1 = $this->urlLoginService->login((int) $this->testUser->id(), $hash1);
     $this->assertNotFalse($result1);
-    
+
     $this->container->get('account_switcher')->switchBack();
-    
+
     $result2 = $this->urlLoginService->login((int) $user2->id(), $hash2);
     $this->assertNotFalse($result2);
   }

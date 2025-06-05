@@ -100,7 +100,7 @@ final class AutoLoginUrlTest extends BrowserTestBase {
 
       $this->drupalGet($url);
       $this->assertSession()->statusCodeEquals(200);
-      
+
       // Verify user is logged in.
       $this->assertSession()->pageTextContains($this->testUser->getAccountName());
     }
@@ -150,7 +150,7 @@ final class AutoLoginUrlTest extends BrowserTestBase {
     // Make multiple invalid requests to trigger flood protection.
     for ($i = 1; $i <= 4; $i++) {
       $this->drupalGet('autologinurl/' . $this->testUser->id() . '/invalid-token-' . $i);
-      
+
       if ($i <= 3) {
         $this->assertSession()->statusCodeEquals(403);
       }
@@ -205,7 +205,8 @@ final class AutoLoginUrlTest extends BrowserTestBase {
   public function testTokenExpiration(): void {
     // Set short expiration time.
     $config = $this->config('auto_login_url.settings');
-    $config->set('expiration', 1); // 1 second
+    // 1 second
+    $config->set('expiration', 1);
     $config->save();
 
     // Create auto login URL.
@@ -235,7 +236,7 @@ final class AutoLoginUrlTest extends BrowserTestBase {
    */
   public function testTextConversion(): void {
     global $base_root;
-    
+
     $original_text = sprintf(
       'Please visit %s/user/%d to access your profile and %s/admin/content to view content.',
       $base_root,
@@ -340,13 +341,13 @@ final class AutoLoginUrlTest extends BrowserTestBase {
       ->countQuery()
       ->execute()
       ->fetchField();
-    
+
     $this->assertGreaterThanOrEqual(5, $count);
 
     // Test cleanup of expired tokens.
     /** @var \Drupal\auto_login_url\AutoLoginUrlLogin $login_service */
     $login_service = \Drupal::service('auto_login_url.login');
-    
+
     // Force expiration by setting past timestamp.
     $database->update('auto_login_url')
       ->fields(['timestamp' => time() - 3600])

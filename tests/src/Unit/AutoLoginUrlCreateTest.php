@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Drupal\Tests\auto_login_url\Unit;
 
+use Symfony\Component\HttpFoundation\HeaderBag;
 use Drupal\auto_login_url\AutoLoginUrlCreate;
 use Drupal\auto_login_url\AutoLoginUrlGeneral;
 use Drupal\auto_login_url\AutoLoginUrlRateLimit;
@@ -131,10 +132,11 @@ final class AutoLoginUrlCreateTest extends UnitTestCase {
     $select->method('fields')->willReturnSelf();
     $select->method('condition')->willReturnSelf();
     $select->method('range')->willReturnSelf();
-    
+
     $statement = $this->createMock(StatementInterface::class);
-    $statement->method('fetchField')->willReturn(FALSE); // Hash is unique
-    
+    // Hash is unique.
+    $statement->method('fetchField')->willReturn(FALSE);
+
     $select->method('execute')->willReturn($statement);
     $this->connection->method('select')->willReturn($select);
 
@@ -147,7 +149,7 @@ final class AutoLoginUrlCreateTest extends UnitTestCase {
     // Mock request for IP tracking.
     $request = $this->createMock(Request::class);
     $request->method('getClientIp')->willReturn('192.168.1.1');
-    $request->headers = $this->createMock(\Symfony\Component\HttpFoundation\HeaderBag::class);
+    $request->headers = $this->createMock(HeaderBag::class);
     $request->headers->method('get')->willReturn('Mozilla/5.0');
     $this->requestStack->method('getCurrentRequest')->willReturn($request);
 
@@ -198,7 +200,8 @@ final class AutoLoginUrlCreateTest extends UnitTestCase {
     $this->expectException(AutoLoginUrlException::class);
     $this->expectExceptionMessage('Invalid destination URL');
 
-    $this->urlCreateService->create(123, '', FALSE); // Empty destination
+    // Empty destination.
+    $this->urlCreateService->create(123, '', FALSE);
   }
 
   /**
@@ -248,10 +251,11 @@ final class AutoLoginUrlCreateTest extends UnitTestCase {
     $select->method('fields')->willReturnSelf();
     $select->method('condition')->willReturnSelf();
     $select->method('range')->willReturnSelf();
-    
+
     $statement = $this->createMock(StatementInterface::class);
-    $statement->method('fetchField')->willReturn('existing-hash'); // Always not unique
-    
+    // Always not unique.
+    $statement->method('fetchField')->willReturn('existing-hash');
+
     $select->method('execute')->willReturn($statement);
     $this->connection->method('select')->willReturn($select);
 
@@ -280,10 +284,10 @@ final class AutoLoginUrlCreateTest extends UnitTestCase {
     $select->method('fields')->willReturnSelf();
     $select->method('condition')->willReturnSelf();
     $select->method('range')->willReturnSelf();
-    
+
     $statement = $this->createMock(StatementInterface::class);
     $statement->method('fetchField')->willReturn(FALSE);
-    
+
     $select->method('execute')->willReturn($statement);
     $this->connection->method('select')->willReturn($select);
 
@@ -311,7 +315,7 @@ final class AutoLoginUrlCreateTest extends UnitTestCase {
     $GLOBALS['base_root'] = 'https://example.com';
 
     $originalText = 'Visit https://example.com/user/123 for your profile.';
-    
+
     // Mock the create method to return a converted URL.
     $mockUrlCreateService = $this->getMockBuilder(AutoLoginUrlCreate::class)
       ->setConstructorArgs([
@@ -367,7 +371,7 @@ final class AutoLoginUrlCreateTest extends UnitTestCase {
    */
   public function testConvertTextWithRegexFailure(): void {
     $this->autoLoginUrlGeneral->method('validateUserId')->willReturn(TRUE);
-    
+
     $GLOBALS['base_root'] = 'https://example.com';
 
     // Create a text that might cause regex issues.
@@ -402,10 +406,10 @@ final class AutoLoginUrlCreateTest extends UnitTestCase {
       $select->method('fields')->willReturnSelf();
       $select->method('condition')->willReturnSelf();
       $select->method('range')->willReturnSelf();
-      
+
       $statement = $this->createMock(StatementInterface::class);
       $statement->method('fetchField')->willReturn(FALSE);
-      
+
       $select->method('execute')->willReturn($statement);
       $this->connection->method('select')->willReturn($select);
 
@@ -426,7 +430,7 @@ final class AutoLoginUrlCreateTest extends UnitTestCase {
   public function testEntropyGeneration(): void {
     $this->rateLimiter->method('checkCreationLimit')->willReturn(TRUE);
     $this->autoLoginUrlGeneral->method('validateUserId')->willReturn(TRUE);
-    
+
     $config = $this->createMock(ImmutableConfig::class);
     $config->method('get')->willReturn(64);
     $this->configFactory->method('get')->willReturn($config);
@@ -436,17 +440,17 @@ final class AutoLoginUrlCreateTest extends UnitTestCase {
 
     // Test that multiple calls generate different hashes.
     $hashes = [];
-    
+
     for ($i = 0; $i < 3; $i++) {
       // Mock unique hash check - return different hashes.
       $select = $this->createMock(Select::class);
       $select->method('fields')->willReturnSelf();
       $select->method('condition')->willReturnSelf();
       $select->method('range')->willReturnSelf();
-      
+
       $statement = $this->createMock(StatementInterface::class);
       $statement->method('fetchField')->willReturn(FALSE);
-      
+
       $select->method('execute')->willReturn($statement);
       $this->connection->method('select')->willReturn($select);
 
@@ -456,7 +460,7 @@ final class AutoLoginUrlCreateTest extends UnitTestCase {
       $this->connection->method('insert')->willReturn($insert);
 
       $url = $this->urlCreateService->create(123, "dest{$i}", FALSE);
-      
+
       // Extract hash from URL.
       preg_match('/autologinurl\/\d+\/([^\/]+)/', $url, $matches);
       $hash = $matches[1] ?? '';
@@ -473,7 +477,7 @@ final class AutoLoginUrlCreateTest extends UnitTestCase {
   public function testIpAndUserAgentTracking(): void {
     $this->rateLimiter->method('checkCreationLimit')->willReturn(TRUE);
     $this->autoLoginUrlGeneral->method('validateUserId')->willReturn(TRUE);
-    
+
     $config = $this->createMock(ImmutableConfig::class);
     $config->method('get')->willReturn(64);
     $this->configFactory->method('get')->willReturn($config);
@@ -484,7 +488,7 @@ final class AutoLoginUrlCreateTest extends UnitTestCase {
     // Mock request with IP and user agent.
     $request = $this->createMock(Request::class);
     $request->method('getClientIp')->willReturn('192.168.1.100');
-    $request->headers = $this->createMock(\Symfony\Component\HttpFoundation\HeaderBag::class);
+    $request->headers = $this->createMock(HeaderBag::class);
     $request->headers->method('get')
       ->with('User-Agent', '')
       ->willReturn('Mozilla/5.0 (Test Browser)');
@@ -494,10 +498,10 @@ final class AutoLoginUrlCreateTest extends UnitTestCase {
     $select->method('fields')->willReturnSelf();
     $select->method('condition')->willReturnSelf();
     $select->method('range')->willReturnSelf();
-    
+
     $statement = $this->createMock(StatementInterface::class);
     $statement->method('fetchField')->willReturn(FALSE);
-    
+
     $select->method('execute')->willReturn($statement);
     $this->connection->method('select')->willReturn($select);
 
@@ -506,7 +510,7 @@ final class AutoLoginUrlCreateTest extends UnitTestCase {
     $insert->expects($this->once())
       ->method('fields')
       ->with($this->callback(function ($fields) {
-        return isset($fields['ip_address']) && 
+        return isset($fields['ip_address']) &&
                isset($fields['user_agent']) &&
                $fields['ip_address'] === '192.168.1.100' &&
                $fields['user_agent'] === 'Mozilla/5.0 (Test Browser)';
@@ -524,7 +528,7 @@ final class AutoLoginUrlCreateTest extends UnitTestCase {
   public function testNoRequestContext(): void {
     $this->rateLimiter->method('checkCreationLimit')->willReturn(TRUE);
     $this->autoLoginUrlGeneral->method('validateUserId')->willReturn(TRUE);
-    
+
     $config = $this->createMock(ImmutableConfig::class);
     $config->method('get')->willReturn(64);
     $this->configFactory->method('get')->willReturn($config);
@@ -539,10 +543,10 @@ final class AutoLoginUrlCreateTest extends UnitTestCase {
     $select->method('fields')->willReturnSelf();
     $select->method('condition')->willReturnSelf();
     $select->method('range')->willReturnSelf();
-    
+
     $statement = $this->createMock(StatementInterface::class);
     $statement->method('fetchField')->willReturn(FALSE);
-    
+
     $select->method('execute')->willReturn($statement);
     $this->connection->method('select')->willReturn($select);
 
@@ -551,7 +555,7 @@ final class AutoLoginUrlCreateTest extends UnitTestCase {
     $insert->expects($this->once())
       ->method('fields')
       ->with($this->callback(function ($fields) {
-        return array_key_exists('ip_address', $fields) && 
+        return array_key_exists('ip_address', $fields) &&
                array_key_exists('user_agent', $fields) &&
                $fields['ip_address'] === NULL &&
                $fields['user_agent'] === NULL;

@@ -7,12 +7,12 @@ namespace Drupal\auto_login_url;
 use Drupal\Component\Utility\Crypt;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Database\Connection;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
 use Drupal\Core\Logger\LoggerChannelInterface;
 use Drupal\Core\Session\UserSessionInterface;
 use Drupal\Core\Site\Settings;
 use Drupal\Core\Url;
-use Drupal\user\Entity\User;
 use Drupal\user\UserAuthenticationInterface;
 use Drupal\user\UserInterface;
 
@@ -54,6 +54,11 @@ final class AutoLoginUrlLogin {
   private LoggerChannelInterface $logger;
 
   /**
+   * The entity type manager.
+   */
+  private EntityTypeManagerInterface $entityTypeManager;
+
+  /**
    * Constructs an AutoLoginUrlLogin object.
    *
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
@@ -68,6 +73,8 @@ final class AutoLoginUrlLogin {
    *   The current user session.
    * @param \Drupal\Core\Logger\LoggerChannelFactoryInterface $logger_factory
    *   The logger factory service.
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   *   The entity type manager.
    */
   public function __construct(
     ConfigFactoryInterface $config_factory,
@@ -75,7 +82,8 @@ final class AutoLoginUrlLogin {
     AutoLoginUrlGeneral $auto_login_url_general,
     UserAuthenticationInterface $user_authentication,
     UserSessionInterface $current_user,
-    LoggerChannelFactoryInterface $logger_factory
+    LoggerChannelFactoryInterface $logger_factory,
+    EntityTypeManagerInterface $entity_type_manager
   ) {
     $this->configFactory = $config_factory;
     $this->connection = $connection;
@@ -83,6 +91,7 @@ final class AutoLoginUrlLogin {
     $this->userAuthentication = $user_authentication;
     $this->currentUser = $current_user;
     $this->logger = $logger_factory->get('auto_login_url');
+    $this->entityTypeManager = $entity_type_manager;
   }
 
   /**
@@ -370,24 +379,34 @@ final class AutoLoginUrlLogin {
    *   The user account or FALSE on failure.
    */
   private function loadAndValidateUser(int $uid): UserInterface|false {
-    $account = User::load($uid);
-    
-    if (!$account instanceof UserInterface) {
-      $this->logger->warning('Failed to load user account @uid', ['@uid' => $uid]);
+    try {
+      $user_storage = $this->entityTypeManager->getStorage('user');
+      $account = $user_storage->load($uid);
+      
+      if (!$account instanceof UserInterface) {
+        $this->logger->warning('Failed to load user account @uid', ['@uid' => $uid]);
+        return FALSE;
+      }
+
+      if ($account->isBlocked()) {
+        $this->logger->warning('Attempted auto login for blocked user @uid', ['@uid' => $uid]);
+        return FALSE;
+      }
+
+      if (!$account->isActive()) {
+        $this->logger->warning('Attempted auto login for inactive user @uid', ['@uid' => $uid]);
+        return FALSE;
+      }
+
+      return $account;
+    }
+    catch (\Exception $e) {
+      $this->logger->error('Error loading user @uid: @message', [
+        '@uid' => $uid,
+        '@message' => $e->getMessage(),
+      ]);
       return FALSE;
     }
-
-    if ($account->isBlocked()) {
-      $this->logger->warning('Attempted auto login for blocked user @uid', ['@uid' => $uid]);
-      return FALSE;
-    }
-
-    if (!$account->isActive()) {
-      $this->logger->warning('Attempted auto login for inactive user @uid', ['@uid' => $uid]);
-      return FALSE;
-    }
-
-    return $account;
   }
 
   /**

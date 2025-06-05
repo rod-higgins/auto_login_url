@@ -107,7 +107,7 @@ final class AutoLoginUrlTextConverterTest extends UnitTestCase {
       $this->assertEquals($url, $result, "Image URL {$url} should not be converted");
     }
 
-    // URL creator should never be called for image files
+    // URL creator should never be called for image files.
     $this->urlCreator->expects($this->never())->method('create');
   }
 
@@ -226,7 +226,7 @@ final class AutoLoginUrlTextConverterTest extends UnitTestCase {
       ->with($this->testUid, $url, TRUE)
       ->willThrowException(new AutoLoginUrlException('Creation failed'));
 
-    // Should return original URL when conversion fails
+    // Should return original URL when conversion fails.
     $result = $this->textConverter->convertUrl($matches);
     $this->assertEquals($url, $result);
   }
@@ -243,7 +243,7 @@ final class AutoLoginUrlTextConverterTest extends UnitTestCase {
       ->with($this->testUid, $url, TRUE)
       ->willThrowException(new \Exception('Generic error'));
 
-    // Should return original URL when any exception occurs
+    // Should return original URL when any exception occurs.
     $result = $this->textConverter->convertUrl($matches);
     $this->assertEquals($url, $result);
   }
@@ -291,11 +291,14 @@ final class AutoLoginUrlTextConverterTest extends UnitTestCase {
    * @covers ::shouldSkipUrl
    */
   public function testShouldNotSkipValidUrlsWithSimilarPatterns(): void {
-    // URLs that might look like they should be skipped but shouldn't be
+    // URLs that might look like they should be skipped but shouldn't be.
     $validUrls = [
-      'https://example.com/user-jpg',  // No actual .jpg extension
-      'https://example.com/pdf-viewer', // No actual .pdf extension
-      'https://example.com/page?format=pdf', // Query parameter, not extension
+    // No actual .jpg extension.
+      'https://example.com/user-jpg',
+    // No actual .pdf extension.
+      'https://example.com/pdf-viewer',
+    // Query parameter, not extension.
+      'https://example.com/page?format=pdf',
     ];
 
     $this->urlCreator->method('create')
@@ -314,18 +317,18 @@ final class AutoLoginUrlTextConverterTest extends UnitTestCase {
    * @covers ::shouldSkipUrl
    */
   public function testShouldSkipUrlEdgeCases(): void {
-    // Test URLs that should be skipped
+    // Test URLs that should be skipped.
     $skipUrls = [
-      // File extensions in different positions
+      // File extensions in different positions.
       'https://example.com/files/document.pdf',
       'https://example.com/images/photo.jpg',
       'https://cdn.example.com/assets/style.css',
-      
-      // Anchor links
+
+      // Anchor links.
       'https://example.com/page#main',
       '#top',
-      
-      // Special protocols
+
+      // Special protocols.
       'mailto:test@example.com',
       'tel:555-1234',
     ];
@@ -336,7 +339,7 @@ final class AutoLoginUrlTextConverterTest extends UnitTestCase {
       $this->assertEquals($url, $result, "URL should be skipped: {$url}");
     }
 
-    // URLs that should be converted
+    // URLs that should be converted.
     $convertUrls = [
       'https://example.com/user/123',
       'https://example.com/admin/config',

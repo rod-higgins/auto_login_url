@@ -77,7 +77,8 @@ final class AutoLoginUrlPerformanceSecurityTest extends BrowserTestBase {
     $duration = $endTime - $startTime;
 
     // Should complete within reasonable time (less than 10 seconds for 50 URLs).
-    $this->assertLessThan(10.0, $duration, 'URL creation took too long: ' . $duration . ' seconds');
+    $this->assertLessThan(10.0, $duration, 
+      'URL creation took too long: ' . $duration . ' seconds');
 
     // All URLs should be unique.
     $this->assertEquals(count($urls), count(array_unique($urls)));
@@ -139,7 +140,6 @@ final class AutoLoginUrlPerformanceSecurityTest extends BrowserTestBase {
     );
 
     preg_match('/autologinurl\/(\d+)\/([^\/]+)/', $validUrl, $matches);
-    $validHash = $matches[2];
 
     // Test timing consistency with different invalid hashes.
     $invalidHashes = [
@@ -166,7 +166,8 @@ final class AutoLoginUrlPerformanceSecurityTest extends BrowserTestBase {
     // Timing should be relatively consistent (within 200ms variation).
     $minTime = min($times);
     $maxTime = max($times);
-    $this->assertLessThan(0.2, $maxTime - $minTime, 'Timing variation too high: ' . ($maxTime - $minTime) . ' seconds');
+    $this->assertLessThan(0.2, $maxTime - $minTime, 
+      'Timing variation too high: ' . ($maxTime - $minTime) . ' seconds');
   }
 
   /**
@@ -450,7 +451,8 @@ final class AutoLoginUrlPerformanceSecurityTest extends BrowserTestBase {
     $totalChars = strlen($allChars);
     foreach ($charCounts as $char => $count) {
       $percentage = ($count / $totalChars) * 100;
-      $this->assertLessThan(20, $percentage, "Character '{$char}' appears too frequently: {$percentage}%");
+      $this->assertLessThan(20, $percentage, 
+        "Character '{$char}' appears too frequently: {$percentage}%");
     }
 
     // Test for patterns (consecutive repeated characters).

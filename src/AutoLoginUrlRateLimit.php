@@ -65,17 +65,17 @@ final class AutoLoginUrlRateLimit {
     $config = $this->configFactory->get('auto_login_url.settings');
     $limit = (int) $config->get('max_urls_per_user_per_hour') ?: self::DEFAULT_RATE_LIMIT;
     $window = self::DEFAULT_TIME_WINDOW;
-    
+
     $key = $this->getStateKey($uid);
     $attempts = $this->state->get($key, []);
-    
+
     // Clean old attempts outside the time window.
     $cutoff = time() - $window;
     $attempts = array_filter($attempts, fn($timestamp) => $timestamp > $cutoff);
-    
+
     // Update state with cleaned attempts.
     $this->state->set($key, $attempts);
-    
+
     return count($attempts) < $limit;
   }
 
@@ -89,12 +89,12 @@ final class AutoLoginUrlRateLimit {
     $key = $this->getStateKey($uid);
     $attempts = $this->state->get($key, []);
     $attempts[] = time();
-    
+
     // Keep only the most recent attempts to prevent memory issues.
     if (count($attempts) > self::MAX_STORED_ATTEMPTS) {
       $attempts = array_slice($attempts, -self::MAX_STORED_ATTEMPTS);
     }
-    
+
     $this->state->set($key, $attempts);
   }
 
@@ -106,7 +106,7 @@ final class AutoLoginUrlRateLimit {
    */
   public function getRateLimitConfig(): array {
     $config = $this->configFactory->get('auto_login_url.settings');
-    
+
     return [
       'limit' => (int) $config->get('max_urls_per_user_per_hour') ?: self::DEFAULT_RATE_LIMIT,
       'window' => self::DEFAULT_TIME_WINDOW,
@@ -126,11 +126,11 @@ final class AutoLoginUrlRateLimit {
     $config = $this->getRateLimitConfig();
     $key = $this->getStateKey($uid);
     $attempts = $this->state->get($key, []);
-    
+
     // Clean old attempts.
     $cutoff = time() - $config['window'];
     $recent_attempts = array_filter($attempts, fn($timestamp) => $timestamp > $cutoff);
-    
+
     return max(0, $config['limit'] - count($recent_attempts));
   }
 
@@ -174,7 +174,7 @@ final class AutoLoginUrlRateLimit {
     $total_users_with_attempts = count($rate_limit_keys);
     $total_attempts = 0;
     $users_near_limit = 0;
-    
+
     $config = $this->getRateLimitConfig();
     $cutoff = time() - $config['window'];
 
@@ -182,7 +182,7 @@ final class AutoLoginUrlRateLimit {
       $attempts = $this->state->get($key, []);
       $recent_attempts = array_filter($attempts, fn($timestamp) => $timestamp > $cutoff);
       $total_attempts += count($recent_attempts);
-      
+
       // Count users who are at 80% or more of their limit.
       if (count($recent_attempts) >= ($config['limit'] * 0.8)) {
         $users_near_limit++;
@@ -214,17 +214,19 @@ final class AutoLoginUrlRateLimit {
     );
 
     $cleaned_up = 0;
-    $cutoff = time() - (self::DEFAULT_TIME_WINDOW * 2); // Clean data older than 2 hours
+    // Clean data older than 2 hours.
+    $cutoff = time() - (self::DEFAULT_TIME_WINDOW * 2);
 
     foreach ($rate_limit_keys as $key) {
       $attempts = $this->state->get($key, []);
       $recent_attempts = array_filter($attempts, fn($timestamp) => $timestamp > $cutoff);
-      
+
       if (empty($recent_attempts)) {
         // No recent attempts, delete the entire record.
         $this->state->delete($key);
         $cleaned_up++;
-      } elseif (count($recent_attempts) < count($attempts)) {
+      }
+      elseif (count($recent_attempts) < count($attempts)) {
         // Some old attempts, update with only recent ones.
         $this->state->set($key, array_values($recent_attempts));
       }

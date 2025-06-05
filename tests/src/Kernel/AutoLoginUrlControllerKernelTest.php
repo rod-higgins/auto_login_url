@@ -425,12 +425,36 @@ final class AutoLoginUrlControllerKernelTest extends KernelTestBase {
   public function testControllerErrorHandling(): void {
     // Test various invalid inputs that should trigger different exceptions.
     $testCases = [
-      ['uid' => 0, 'hash' => 'valid-hash', 'expectedException' => BadRequestHttpException::class],
-      ['uid' => -1, 'hash' => 'valid-hash', 'expectedException' => BadRequestHttpException::class],
-      ['uid' => (int) $this->testUser->id(), 'hash' => '', 'expectedException' => BadRequestHttpException::class],
-      ['uid' => (int) $this->testUser->id(), 'hash' => 'invalid spaces', 'expectedException' => BadRequestHttpException::class],
-      ['uid' => 99999, 'hash' => 'valid-looking-hash', 'expectedException' => NotFoundHttpException::class],
-      ['uid' => (int) $this->testUser->id(), 'hash' => 'valid-format-but-wrong', 'expectedException' => AccessDeniedHttpException::class],
+      [
+        'uid' => 0,
+        'hash' => 'valid-hash',
+        'expectedException' => BadRequestHttpException::class,
+      ],
+      [
+        'uid' => -1,
+        'hash' => 'valid-hash',
+        'expectedException' => BadRequestHttpException::class,
+      ],
+      [
+        'uid' => (int) $this->testUser->id(),
+        'hash' => '',
+        'expectedException' => BadRequestHttpException::class,
+      ],
+      [
+        'uid' => (int) $this->testUser->id(),
+        'hash' => 'invalid spaces',
+        'expectedException' => BadRequestHttpException::class,
+      ],
+      [
+        'uid' => 99999,
+        'hash' => 'valid-looking-hash',
+        'expectedException' => NotFoundHttpException::class,
+      ],
+      [
+        'uid' => (int) $this->testUser->id(),
+        'hash' => 'valid-format-but-wrong',
+        'expectedException' => AccessDeniedHttpException::class,
+      ],
     ];
 
     foreach ($testCases as $testCase) {
