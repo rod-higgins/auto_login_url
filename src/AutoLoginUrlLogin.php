@@ -7,7 +7,6 @@ use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Database\Connection;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
-use Drupal\Core\Session\UserSessionInterface;
 use Drupal\Core\Site\Settings;
 use Drupal\Core\Url;
 use Drupal\user\UserAuthenticationInterface;
