@@ -1,97 +1,53 @@
 <?php
 
-declare(strict_types=1);
-
 namespace Drupal\auto_login_url;
 
-use Drupal\Component\Utility\Crypt;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Database\Connection;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
-use Drupal\Core\Logger\LoggerChannelInterface;
 use Drupal\Core\Session\UserSessionInterface;
-use Drupal\Core\Site\Settings;
-use Drupal\Core\Url;
 use Drupal\user\UserAuthenticationInterface;
-use Drupal\user\UserInterface;
 
 /**
  * Service for handling auto login URL authentication.
- *
- * @package Drupal\auto_login_url
  */
-final class AutoLoginUrlLogin {
+class AutoLoginUrlLogin {
 
   /**
-   * The config factory service.
-   */
-  private ConfigFactoryInterface $configFactory;
-
-  /**
-   * The database connection.
-   */
-  private Connection $connection;
-
-  /**
-   * The Auto Login Url General service.
-   */
-  private AutoLoginUrlGeneral $autoLoginUrlGeneral;
-
-  /**
-   * The user authentication service.
-   */
-  private UserAuthenticationInterface $userAuthentication;
-
-  /**
-   * The current user session.
-   */
-  private UserSessionInterface $currentUser;
-
-  /**
-   * The logger channel.
-   */
-  private LoggerChannelInterface $logger;
-
-  /**
-   * The entity type manager.
-   */
-  private EntityTypeManagerInterface $entityTypeManager;
-
-  /**
-   * Constructs an AutoLoginUrlLogin object.
+   * Constructor.
    *
-   * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
-   *   The config factory service.
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $configFactory
+   *   The config factory.
    * @param \Drupal\Core\Database\Connection $connection
    *   The database connection.
-   * @param \Drupal\auto_login_url\AutoLoginUrlGeneral $auto_login_url_general
-   *   The Auto Login Url General service.
-   * @param \Drupal\user\UserAuthenticationInterface $user_authentication
+   * @param \Drupal\auto_login_url\AutoLoginUrlGeneral $autoLoginUrlGeneral
+   *   The general service.
+   * @param \Drupal\user\UserAuthenticationInterface $userAuthentication
    *   The user authentication service.
-   * @param \Drupal\Core\Session\UserSessionInterface $current_user
+   * @param \Drupal\Core\Session\UserSessionInterface $currentUser
    *   The current user session.
-   * @param \Drupal\Core\Logger\LoggerChannelFactoryInterface $logger_factory
-   *   The logger factory service.
-   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entity_type_manager
+   * @param \Drupal\Core\Logger\LoggerChannelFactoryInterface $loggerFactory
+   *   The logger factory.
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager
    *   The entity type manager.
    */
   public function __construct(
-    ConfigFactoryInterface $config_factory,
+    ConfigFactoryInterface $configFactory,
     Connection $connection,
-    AutoLoginUrlGeneral $auto_login_url_general,
-    UserAuthenticationInterface $user_authentication,
-    UserSessionInterface $current_user,
-    LoggerChannelFactoryInterface $logger_factory,
-    EntityTypeManagerInterface $entity_type_manager,
+    AutoLoginUrlGeneral $autoLoginUrlGeneral,
+    UserAuthenticationInterface $userAuthentication,
+    UserSessionInterface $currentUser,
+    LoggerChannelFactoryInterface $loggerFactory,
+    EntityTypeManagerInterface $entityTypeManager
   ) {
-    $this->configFactory = $config_factory;
+    $this->configFactory = $configFactory;
     $this->connection = $connection;
-    $this->autoLoginUrlGeneral = $auto_login_url_general;
-    $this->userAuthentication = $user_authentication;
-    $this->currentUser = $current_user;
-    $this->logger = $logger_factory->get('auto_login_url');
-    $this->entityTypeManager = $entity_type_manager;
+    $this->autoLoginUrlGeneral = $autoLoginUrlGeneral;
+    $this->userAuthentication = $userAuthentication;
+    $this->currentUser = $currentUser;
+    $this->logger = $loggerFactory->get('auto_login_url');
+    $this->entityTypeManager = $entityTypeManager;
   }
 
   /**

@@ -17,7 +17,7 @@ services:
       - '@config.factory'
       - '@database'
       - '@auto_login_url.general'
-      - '@user.authentication'
+      - '@user.authentication.cookie'
       - '@current_user'
       - '@logger.factory'
     tags:
