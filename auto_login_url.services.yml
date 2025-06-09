@@ -17,6 +17,7 @@ services:
       - '@config.factory'
       - '@database'
       - '@auto_login_url.general'
+      - '@user.auth'
       - '@current_user'
       - '@logger.factory'
       - '@entity_type.manager'

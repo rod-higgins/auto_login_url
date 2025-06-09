@@ -7,11 +7,11 @@ namespace Drupal\Tests\auto_login_url\Unit;
 use Drupal\Tests\UnitTestCase;
 
 /**
- * Simple unit test for Auto Login URL module.
+ * Basic unit tests for Auto Login URL module.
  *
  * @group auto_login_url
  */
-final class SimpleAutoLoginUrlUnitTest extends UnitTestCase {
+final class BasicAutoLoginUrlUnitTest extends UnitTestCase {
 
   /**
    * Tests basic validation functions.
@@ -30,6 +30,17 @@ final class SimpleAutoLoginUrlUnitTest extends UnitTestCase {
     $this->assertFalse($this->isValidHashFormat(''), 'Empty hash is invalid.');
     $this->assertFalse($this->isValidHashFormat('abc'), 'Short hash is invalid.');
     $this->assertTrue($this->isValidHashFormat('abcd1234efgh5678'), 'Valid hash format.');
+    $this->assertFalse($this->isValidHashFormat('invalid hash with spaces'), 'Hash with spaces is invalid.');
+  }
+
+  /**
+   * Tests basic URL validation.
+   */
+  public function testUrlValidation(): void {
+    $this->assertTrue($this->isValidDestination('user/123'), 'Valid internal path.');
+    $this->assertTrue($this->isValidDestination('<front>'), 'Front page is valid.');
+    $this->assertFalse($this->isValidDestination(''), 'Empty destination is invalid.');
+    $this->assertFalse($this->isValidDestination(str_repeat('a', 1001)), 'Too long destination is invalid.');
   }
 
   /**
@@ -44,6 +55,13 @@ final class SimpleAutoLoginUrlUnitTest extends UnitTestCase {
    */
   private function isValidHashFormat(string $hash): bool {
     return !empty($hash) && strlen($hash) >= 8 && preg_match('/^[A-Za-z0-9_-]+$/', $hash);
+  }
+
+  /**
+   * Helper method for destination validation.
+   */
+  private function isValidDestination(string $destination): bool {
+    return !empty($destination) && strlen($destination) <= 1000;
   }
 
 }

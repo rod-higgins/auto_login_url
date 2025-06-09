@@ -8,11 +8,11 @@ use Drupal\KernelTests\KernelTestBase;
 use Drupal\user\Entity\User;
 
 /**
- * Simple kernel test for Auto Login URL module.
+ * Basic kernel tests for Auto Login URL module.
  *
  * @group auto_login_url
  */
-final class SimpleAutoLoginUrlKernelTest extends KernelTestBase {
+final class BasicAutoLoginUrlKernelTest extends KernelTestBase {
 
   /**
    * The modules to enable.
@@ -36,25 +36,31 @@ final class SimpleAutoLoginUrlKernelTest extends KernelTestBase {
     $this->installConfig(['auto_login_url', 'system', 'user']);
     $this->installSchema('auto_login_url', ['auto_login_url', 'auto_login_url_usage']);
 
-    // Configure very high rate limits for testing.
+    // Configure high rate limits for testing.
     $this->container->get('config.factory')
       ->getEditable('auto_login_url.settings')
-      ->set('max_urls_per_user_per_hour', 10000)
+      ->set('max_urls_per_user_per_hour', 1000)
       ->save();
   }
 
   /**
-   * Tests service exists.
+   * Tests that services exist and can be instantiated.
    */
-  public function testServiceExists(): void {
+  public function testServicesExist(): void {
     $createService = $this->container->get('auto_login_url.create');
     $this->assertNotNull($createService, 'Auto login URL create service exists.');
+
+    $loginService = $this->container->get('auto_login_url.login');
+    $this->assertNotNull($loginService, 'Auto login URL login service exists.');
+
+    $generalService = $this->container->get('auto_login_url.general');
+    $this->assertNotNull($generalService, 'Auto login URL general service exists.');
   }
 
   /**
-   * Tests basic URL creation with kernel services.
+   * Tests basic URL creation.
    */
-  public function testKernelUrlCreation(): void {
+  public function testBasicUrlCreation(): void {
     $user = User::create([
       'name' => 'testuser',
       'mail' => 'test@example.com',
@@ -63,19 +69,15 @@ final class SimpleAutoLoginUrlKernelTest extends KernelTestBase {
     ]);
     $user->save();
 
-    try {
-      $createService = $this->container->get('auto_login_url.create');
-      $url = $createService->create(
-        (int) $user->id(),
-        '<front>',
-        FALSE
-      );
+    $createService = $this->container->get('auto_login_url.create');
+    $url = $createService->create(
+      (int) $user->id(),
+      '<front>',
+      FALSE
+    );
 
-      $this->assertNotEmpty($url, 'URL was created successfully.');
-    }
-    catch (\Exception $e) {
-      $this->markTestSkipped('Service creation failed: ' . $e->getMessage());
-    }
+    $this->assertNotEmpty($url, 'URL was created successfully.');
+    $this->assertIsString($url, 'URL is a string.');
   }
 
 }
