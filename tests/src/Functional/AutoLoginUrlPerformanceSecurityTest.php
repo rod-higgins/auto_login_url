@@ -110,7 +110,8 @@ final class AutoLoginUrlPerformanceSecurityTest extends BrowserTestBase {
 
     // Mark them as expired.
     $database = $this->container->get('database');
-    $expired_time = time() - 7200; // 2 hours ago
+    // 2 hours ago
+    $expired_time = time() - 7200;
     $database->update('auto_login_url')
       ->fields(['timestamp' => $expired_time])
       ->execute();

@@ -44,7 +44,9 @@ class AutoLoginUrlLogin {
   private AccountProxyInterface $currentUser;
 
   /**
-   * The logger factory.
+   * The logger channel.
+   *
+   * @var \Drupal\Core\Logger\LoggerChannelInterface
    */
   private $logger;
 
