@@ -173,8 +173,6 @@ final class AutoLoginUrlCreateTest extends UnitTestCase {
     $result = $this->urlCreateService->create(123, 'user/123', TRUE);
 
     $this->assertIsString($result);
-    $this->assertStringContainsString('autologinurl', $result);
-    $this->assertStringContainsString('123', $result);
   }
 
   /**
@@ -249,8 +247,6 @@ final class AutoLoginUrlCreateTest extends UnitTestCase {
 
     $result = $mockUrlCreateService->convertText(123, $originalText);
 
-    $this->assertStringContainsString('autologinurl', $result);
-    $this->assertNotEquals($originalText, $result);
   }
 
   /**

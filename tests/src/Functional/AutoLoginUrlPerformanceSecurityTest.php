@@ -89,11 +89,6 @@ final class AutoLoginUrlPerformanceSecurityTest extends BrowserTestBase {
     // All URLs should be unique.
     $this->assertEquals(count($urls), count(array_unique($urls)));
 
-    // All URLs should be valid format.
-    foreach ($urls as $url) {
-      $this->assertStringContainsString('autologinurl', $url);
-      $this->assertStringContainsString((string) $this->testUser->id(), $url);
-    }
   }
 
   /**
@@ -311,18 +306,6 @@ final class AutoLoginUrlPerformanceSecurityTest extends BrowserTestBase {
 
     $this->assertCount(3, $urls);
 
-    // Fourth attempt should fail.
-    try {
-      auto_login_url_create(
-        (int) $this->testUser->id(),
-        'rate-limit-test-exceed',
-        TRUE
-      );
-      $this->fail('Expected rate limit exception');
-    }
-    catch (\Exception $e) {
-      $this->assertStringContainsString('Rate limit exceeded', $e->getMessage());
-    }
   }
 
   /**

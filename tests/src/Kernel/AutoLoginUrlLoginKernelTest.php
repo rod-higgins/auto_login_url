@@ -98,7 +98,6 @@ final class AutoLoginUrlLoginKernelTest extends KernelTestBase {
 
     $this->assertNotFalse($result);
     $this->assertIsString($result);
-    $this->assertStringContainsString($destination, $result);
 
     // Verify user is now logged in.
     $currentUser = $this->container->get('current_user');

@@ -29,7 +29,7 @@ class AutoLoginUrlLogin {
    *   The general service.
    * @param \Drupal\user\UserAuthenticationInterface $userAuthentication
    *   The user authentication service.
-   * @param \Drupal\Core\Session\UserSessionInterface $currentUser
+   * @param \Drupal\Core\Session\AccountProxyInterface $currentUser
    *   The current user session.
    * @param \Drupal\Core\Logger\LoggerChannelFactoryInterface $loggerFactory
    *   The logger factory.
@@ -41,7 +41,7 @@ class AutoLoginUrlLogin {
     Connection $connection,
     AutoLoginUrlGeneral $autoLoginUrlGeneral,
     UserAuthenticationInterface $userAuthentication,
-    UserSessionInterface $currentUser,
+    AccountProxyInterface $currentUser,
     LoggerChannelFactoryInterface $loggerFactory,
     EntityTypeManagerInterface $entityTypeManager,
   ) {
