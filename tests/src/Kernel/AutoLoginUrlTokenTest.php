@@ -44,6 +44,7 @@ final class AutoLoginUrlTokenTest extends KernelTestBase {
     parent::setUp();
 
     $this->installEntitySchema('user');
+    $this->installSchema('user', ['users_data']);
     $this->installConfig(['auto_login_url', 'system', 'user']);
     $this->installSchema('auto_login_url', ['auto_login_url', 'auto_login_url_usage']);
 

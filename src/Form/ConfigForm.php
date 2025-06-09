@@ -70,6 +70,8 @@ final class ConfigForm extends ConfigFormBase {
    *
    * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
    *   The factory for configuration objects.
+   * @param \Drupal\Core\Config\TypedConfigManagerInterface $typed_config_manager
+   *   The typed configuration manager.
    * @param \Drupal\auto_login_url\AutoLoginUrlGeneral $auto_login_url_general
    *   The Auto Login Url General service.
    * @param \Drupal\auto_login_url\AutoLoginUrlRateLimit $rate_limiter
@@ -79,11 +81,12 @@ final class ConfigForm extends ConfigFormBase {
    */
   public function __construct(
     ConfigFactoryInterface $config_factory,
+    TypedConfigManagerInterface $typed_config_manager,
     AutoLoginUrlGeneral $auto_login_url_general,
     AutoLoginUrlRateLimit $rate_limiter,
     LoggerChannelFactoryInterface $logger_factory,
   ) {
-    parent::__construct($config_factory);
+    parent::__construct($config_factory, $typed_config_manager);
     $this->autoLoginUrlGeneral = $auto_login_url_general;
     $this->rateLimiter = $rate_limiter;
     $this->logger = $logger_factory->get('auto_login_url');

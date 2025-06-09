@@ -398,7 +398,7 @@ final class AutoLoginUrlControllerKernelTest extends KernelTestBase {
   }
 
   /**
-   * Tests controller handles various hash formats.
+   * @covers ::testControllerHandlesVariousHashFormats
    */
   public function testControllerHandlesVariousHashFormats(): void {
     $validHashFormats = [
@@ -406,7 +406,6 @@ final class AutoLoginUrlControllerKernelTest extends KernelTestBase {
       'ABC123DEF456',
       'abc_123-def',
       '1234567890123456',
-    // Long hash.
       str_repeat('a', 64),
     ];
 
@@ -418,6 +417,10 @@ final class AutoLoginUrlControllerKernelTest extends KernelTestBase {
       }
       catch (BadRequestHttpException $e) {
         $this->fail("Hash format should be valid: {$hashFormat}");
+      }
+      catch (AccessDeniedHttpException $e) {
+        // This is expected - format is valid but authentication fails.
+        $this->addToAssertionCount(1);
       }
     }
   }

@@ -331,8 +331,8 @@ class AutoLoginUrlLogin {
    * Performs the user login using modern Drupal APIs.
    */
   private function performUserLogin(UserInterface $account): void {
-    // Use the modern authentication service instead of deprecated function.
-    $this->userAuthentication->finalize($account);
+    // Log in the user by switching the current user account.
+    $this->currentUser->setAccount($account);
 
     // Update user's last login timestamp using entity API.
     $account->setLastLoginTime(time());

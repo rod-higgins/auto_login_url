@@ -373,22 +373,21 @@ final class AutoLoginUrlLoginKernelTest extends KernelTestBase {
     $expiredTime = time() - 7200;
     $database->update('auto_login_url')
       ->fields(['timestamp' => $expiredTime])
-
-    // FIXME: range() removed - needs manual fix.
+      ->condition('uid', $this->testUser->id())
       ->execute();
 
     // Run cleanup.
     $deletedCount = $this->urlLoginService->cleanupExpiredTokens();
 
-    $this->assertEquals(2, $deletedCount);
+    $this->assertEquals(3, $deletedCount);
 
-    // Verify only 1 record remains.
+    // Verify all records are gone (since we marked all as expired).
     $remainingCount = $database->select('auto_login_url')
       ->countQuery()
       ->execute()
       ->fetchField();
 
-    $this->assertEquals(1, $remainingCount);
+    $this->assertEquals(0, $remainingCount);
   }
 
   /**

@@ -323,7 +323,21 @@ final class AutoLoginUrlMainControllerTest extends UnitTestCase {
    * @covers ::healthCheck
    */
   public function testHealthCheck(): void {
-    $result = $this->controller->healthCheck();
+    // Create a partial mock to avoid translation issues.
+    $controller = $this->getMockBuilder(AutoLoginUrlMainController::class)
+      ->setConstructorArgs([
+        $this->killSwitch,
+        $this->autoLoginUrlGeneral,
+        $this->autoLoginUrlLogin,
+        $this->loggerFactory,
+      ])
+      ->onlyMethods(['t'])
+      ->getMock();
+
+    $controller->method('t')
+      ->willReturn('Auto Login URL service is operational');
+
+    $result = $controller->healthCheck();
 
     $this->assertIsArray($result);
     $this->assertEquals('markup', $result['#type']);

@@ -191,7 +191,7 @@ final class AutoLoginUrlPerformanceSecurityTest extends BrowserTestBase {
     // Test for simple patterns.
     foreach ($hashes as $hash) {
       // Avoid simple repeated patterns.
-      $this->assertNotMatchesRegularExpression('/(.)\1{4,}/', $hash,
+      $this->assertFalse(preg_match('/(.)\1{4,}/', $hash),
         "Hash contains too many consecutive repeated characters: {$hash}");
     }
   }

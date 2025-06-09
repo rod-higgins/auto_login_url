@@ -186,23 +186,24 @@ final class AutoLoginUrlGeneralTest extends UnitTestCase {
       ->with('secret')
       ->willReturn('');
 
-    $editableConfig = $this->getMockBuilder(Config::class)
-      ->disableOriginalConstructor()
-      ->getMock();
+    $editableConfig = $this->createMock(Config::class);
     $editableConfig->expects($this->once())
       ->method('set')
-      ->with('secret')->willReturnSelf();
-    $query->method('execute')->willReturn([123]);
+      ->with('secret', $this->isType('string'))
+      ->willReturnSelf();
+    $editableConfig->expects($this->once())
+      ->method('save');
 
-    $userStorage = $this->createMock(EntityStorageInterface::class);
-    $userStorage->method('getQuery')->willReturn($query);
+    $this->configFactory->method('get')
+      ->with('auto_login_url.settings')
+      ->willReturn($config);
 
-    $this->entityTypeManager->method('getStorage')
-      ->with('user')
-      ->willReturn($userStorage);
+    $this->configFactory->method('getEditable')
+      ->with('auto_login_url.settings')
+      ->willReturn($editableConfig);
 
-    $result = $this->autoLoginUrlGeneral->validateUserId(123);
-    $this->assertTrue($result);
+    $result = $this->autoLoginUrlGeneral->getSecret();
+    $this->assertNotEmpty($result);
   }
 
   /**

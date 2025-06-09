@@ -227,8 +227,14 @@ final class AutoLoginUrlTextConverterTest extends UnitTestCase {
       ->with($this->testUid, $url, TRUE)
       ->willThrowException(new AutoLoginUrlException('Creation failed'));
 
+    // Mock the static Drupal::logger call.
+    $mockTextConverter = $this->getMockBuilder(AutoLoginUrlTextConverter::class)
+      ->setConstructorArgs([$this->testUid, $this->urlCreator])
+      ->onlyMethods([])
+      ->getMock();
+
     // Should return original URL when conversion fails.
-    $result = $this->textConverter->convertUrl($matches);
+    $result = $mockTextConverter->convertUrl($matches);
     $this->assertEquals($url, $result);
   }
 
