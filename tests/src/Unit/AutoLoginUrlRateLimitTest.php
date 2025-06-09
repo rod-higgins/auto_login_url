@@ -36,7 +36,7 @@ final class AutoLoginUrlRateLimitTest extends UnitTestCase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp(): void: void {
+  protected function setUp(): void {
     parent::setUp();
 
     $this->configFactory = $this->createMock(ConfigFactoryInterface::class);

@@ -12,7 +12,7 @@ use Drupal\Core\State\StateInterface;
  *
  * @package Drupal\auto_login_url
  */
-final class AutoLoginUrlRateLimit {
+class AutoLoginUrlRateLimit {
 
   /**
    * Default rate limit (URLs per hour per user).

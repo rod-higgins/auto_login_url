@@ -28,6 +28,9 @@ final class AutoLoginUrlCreateKernelTest extends KernelTestBase {
   private AutoLoginUrlCreate $urlCreateService;
   private UserInterface $testUser;
 
+  /**
+   *
+   */
   protected function setUp(): void {
     parent::setUp();
 
@@ -35,7 +38,7 @@ final class AutoLoginUrlCreateKernelTest extends KernelTestBase {
     $this->installConfig(['auto_login_url', 'system', 'user']);
     $this->installSchema('auto_login_url', ['auto_login_url', 'auto_login_url_usage']);
 
-    // Configure high rate limits for testing
+    // Configure high rate limits for testing.
     $this->container->get('config.factory')
       ->getEditable('auto_login_url.settings')
       ->set('max_urls_per_user_per_hour', 1000)
@@ -173,7 +176,8 @@ final class AutoLoginUrlCreateKernelTest extends KernelTestBase {
 
     $this->urlCreateService->create(
       (int) $this->testUser->id(),
-      '', // Empty destination
+    // Empty destination.
+      '',
       FALSE
     );
   }
@@ -182,7 +186,8 @@ final class AutoLoginUrlCreateKernelTest extends KernelTestBase {
    * @covers ::create
    */
   public function testCreateWithLongDestination(): void {
-    $longDestination = str_repeat('a', 1001); // Over 1000 characters
+    // Over 1000 characters.
+    $longDestination = str_repeat('a', 1001);
 
     $this->expectException(AutoLoginUrlException::class);
     $this->expectExceptionMessage('Invalid destination URL');

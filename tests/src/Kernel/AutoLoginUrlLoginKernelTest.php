@@ -46,8 +46,14 @@ final class AutoLoginUrlLoginKernelTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp(): void: void {
+  protected function setUp(): void {
     parent::setUp();
+
+    // Configure very high rate limits for testing to prevent conflicts
+    $this->container->get('config.factory')
+      ->getEditable('auto_login_url.settings')
+      ->set('max_urls_per_user_per_hour', 10000)
+      ->save();
 
     $this->installEntitySchema('user');
     $this->installConfig(['auto_login_url', 'system', 'user']);
@@ -368,8 +374,9 @@ final class AutoLoginUrlLoginKernelTest extends KernelTestBase {
     $expiredTime = time() - 7200;
     $database->update('auto_login_url')
       ->fields(['timestamp' => $expiredTime])
-      
-      ->execute(); // FIXME: range() removed - needs manual fix
+
+    // FIXME: range() removed - needs manual fix.
+      ->execute();
 
     // Run cleanup.
     $deletedCount = $this->urlLoginService->cleanupExpiredTokens();

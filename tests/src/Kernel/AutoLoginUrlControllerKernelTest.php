@@ -52,8 +52,14 @@ final class AutoLoginUrlControllerKernelTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp(): void: void {
+  protected function setUp(): void {
     parent::setUp();
+
+    // Configure very high rate limits for testing to prevent conflicts
+    $this->container->get('config.factory')
+      ->getEditable('auto_login_url.settings')
+      ->set('max_urls_per_user_per_hour', 10000)
+      ->save();
 
     $this->installEntitySchema('user');
     $this->installConfig(['auto_login_url', 'system', 'user']);

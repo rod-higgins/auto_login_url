@@ -44,8 +44,14 @@ final class AutoLoginUrlIntegrationTest extends BrowserTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp(): void: void {
+  protected function setUp(): void {
     parent::setUp();
+
+    // Configure very high rate limits for testing to prevent conflicts
+    $this->container->get('config.factory')
+      ->getEditable('auto_login_url.settings')
+      ->set('max_urls_per_user_per_hour', 10000)
+      ->save();
 
     // Grant permissions to anonymous users for testing.
     $anonymous_role = Role::load('anonymous');
@@ -358,8 +364,9 @@ final class AutoLoginUrlIntegrationTest extends BrowserTestBase {
     $expired_time = time() - 7200;
     $database->update('auto_login_url')
       ->fields(['timestamp' => $expired_time])
-      
-      ->execute(); // FIXME: range() removed - needs manual fix
+
+    // FIXME: range() removed - needs manual fix.
+      ->execute();
 
     // Test manual cleanup.
     $this->drupalGet('admin/people/autologinurl');

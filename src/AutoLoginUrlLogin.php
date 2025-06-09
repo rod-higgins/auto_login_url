@@ -39,7 +39,7 @@ class AutoLoginUrlLogin {
     UserAuthenticationInterface $userAuthentication,
     UserSessionInterface $currentUser,
     LoggerChannelFactoryInterface $loggerFactory,
-    EntityTypeManagerInterface $entityTypeManager
+    EntityTypeManagerInterface $entityTypeManager,
   ) {
     $this->configFactory = $configFactory;
     $this->connection = $connection;

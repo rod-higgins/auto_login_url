@@ -19,7 +19,7 @@ use Symfony\Component\HttpFoundation\RequestStack;
  *
  * @package Drupal\auto_login_url
  */
-final class AutoLoginUrlCreate {
+class AutoLoginUrlCreate {
 
   /**
    * Maximum attempts to generate a unique hash.

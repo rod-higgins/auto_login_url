@@ -42,8 +42,14 @@ final class AutoLoginUrlTest extends BrowserTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp(): void: void {
+  protected function setUp(): void {
     parent::setUp();
+
+    // Configure very high rate limits for testing to prevent conflicts
+    $this->container->get('config.factory')
+      ->getEditable('auto_login_url.settings')
+      ->set('max_urls_per_user_per_hour', 10000)
+      ->save();
 
     // Grant auto login permissions to anonymous users for testing.
     $anonymous_role = Role::load('anonymous');
@@ -362,7 +368,7 @@ final class AutoLoginUrlTest extends BrowserTestBase {
    */
   public function testLoggingAndMonitoring(): void {
     // Enable database logging for testing.
-    \Drupal::moduleHandler()->install(['dblog']);
+    \Drupal::service('module_installer')->install(['dblog']);
 
     // Create and use auto login URL.
     $url = auto_login_url_create(

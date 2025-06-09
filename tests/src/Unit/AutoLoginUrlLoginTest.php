@@ -26,10 +26,13 @@ final class AutoLoginUrlTest extends BrowserTestBase {
   private ?User $testUser = NULL;
   private ?User $restrictedUser = NULL;
 
-  protected function setUp(): void: void {
+  /**
+   *
+   */
+  protected function setUp(): void {
     parent::setUp();
 
-    // Configure very high rate limits to prevent test conflicts
+    // Configure very high rate limits to prevent test conflicts.
     $this->container->get('config.factory')
       ->getEditable('auto_login_url.settings')
       ->set('max_urls_per_user_per_hour', 1000)
@@ -195,7 +198,8 @@ final class AutoLoginUrlTest extends BrowserTestBase {
   public function testTokenExpiration(): void {
     // Set short expiration time.
     $config = $this->config('auto_login_url.settings');
-    $config->set('expiration', 1); // 1 second
+    // 1 second
+    $config->set('expiration', 1);
     $config->save();
 
     // Create auto login URL.
@@ -351,7 +355,7 @@ final class AutoLoginUrlTest extends BrowserTestBase {
    */
   public function testLoggingAndMonitoring(): void {
     // Enable database logging for testing.
-    \Drupal::moduleHandler()->install(['dblog']);
+    \Drupal::service('module_installer')->install(['dblog']);
 
     // Create and use auto login URL.
     $url = auto_login_url_create(

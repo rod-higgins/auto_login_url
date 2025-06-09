@@ -19,7 +19,7 @@ use Symfony\Component\HttpFoundation\Request;
  *
  * @package Drupal\auto_login_url
  */
-final class AutoLoginUrlGeneral {
+class AutoLoginUrlGeneral {
 
   /**
    * The flood identifier for failed login attempts.

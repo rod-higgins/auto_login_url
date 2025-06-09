@@ -40,7 +40,7 @@ final class AutoLoginUrlTokenTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp(): void: void {
+  protected function setUp(): void {
     parent::setUp();
 
     $this->installEntitySchema('user');
