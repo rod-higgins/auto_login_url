@@ -17,11 +17,10 @@ services:
       - '@config.factory'
       - '@database'
       - '@auto_login_url.general'
-      - '@user.authentication.cookie'
+      - '@user.auth'
       - '@current_user'
       - '@logger.factory'
-    tags:
-      - { name: backend_overridable }
+      - '@entity_type.manager'
 
   auto_login_url.general:
     class: Drupal\auto_login_url\AutoLoginUrlGeneral

@@ -284,7 +284,7 @@ final class AutoLoginUrlMainControllerTest extends UnitTestCase {
 
     // Should sanitize to safe destination.
     $this->assertInstanceOf(RedirectResponse::class, $response);
-    $this->assertStringNotContains('javascript:', $response->getTargetUrl());
+    $this->assertStringNotContainsString('javascript:', $response->getTargetUrl());
   }
 
   /**
