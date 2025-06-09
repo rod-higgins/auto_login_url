@@ -52,7 +52,7 @@ final class AutoLoginUrlControllerKernelTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp(): void {
+  protected function setUp(): void: void {
     parent::setUp();
 
     $this->installEntitySchema('user');
@@ -95,7 +95,7 @@ final class AutoLoginUrlControllerKernelTest extends KernelTestBase {
 
     $this->assertInstanceOf(RedirectResponse::class, $response);
     $this->assertEquals(302, $response->getStatusCode());
-    $this->assertStringContains('user/' . $this->testUser->id(), $response->getTargetUrl());
+    $this->assertStringContainsString('user/' . $this->testUser->id(), $response->getTargetUrl());
   }
 
   /**
@@ -263,7 +263,7 @@ final class AutoLoginUrlControllerKernelTest extends KernelTestBase {
       $response = $this->controller->login((int) $this->testUser->id(), $hash);
 
       $this->assertInstanceOf(RedirectResponse::class, $response);
-      $this->assertStringContains($expectedPath, $response->getTargetUrl());
+      $this->assertStringContainsString($expectedPath, $response->getTargetUrl());
 
       // Reset user session for next test.
       $this->container->get('account_switcher')->switchBack();
@@ -414,7 +414,7 @@ final class AutoLoginUrlControllerKernelTest extends KernelTestBase {
       }
       catch (AccessDeniedHttpException $e) {
         // Expected - invalid token but valid format.
-        $this->assertStringContains('Invalid or expired login token', $e->getMessage());
+        $this->assertStringContainsString('Invalid or expired login token', $e->getMessage());
       }
       catch (BadRequestHttpException $e) {
         $this->fail("Hash format should be valid: {$hashFormat}");

@@ -60,7 +60,7 @@ final class AutoLoginUrlMainControllerTest extends UnitTestCase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp(): void {
+  protected function setUp(): void: void {
     parent::setUp();
 
     $this->killSwitch = $this->createMock(KillSwitch::class);
@@ -326,7 +326,7 @@ final class AutoLoginUrlMainControllerTest extends UnitTestCase {
 
     $this->assertIsArray($result);
     $this->assertEquals('markup', $result['#type']);
-    $this->assertStringContains('operational', $result['#markup']);
+    $this->assertStringContainsString('operational', $result['#markup']);
     $this->assertArrayHasKey('#cache', $result);
     $this->assertEquals(300, $result['#cache']['max-age']);
   }

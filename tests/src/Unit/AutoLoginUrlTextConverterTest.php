@@ -35,7 +35,7 @@ final class AutoLoginUrlTextConverterTest extends UnitTestCase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp(): void {
+  protected function setUp(): void: void {
     parent::setUp();
 
     $this->urlCreator = $this->createMock(AutoLoginUrlCreate::class);

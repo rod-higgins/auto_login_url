@@ -46,7 +46,7 @@ final class AutoLoginUrlLoginKernelTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp(): void {
+  protected function setUp(): void: void {
     parent::setUp();
 
     $this->installEntitySchema('user');
@@ -92,7 +92,7 @@ final class AutoLoginUrlLoginKernelTest extends KernelTestBase {
 
     $this->assertNotFalse($result);
     $this->assertIsString($result);
-    $this->assertStringContains($destination, $result);
+    $this->assertStringContainsString($destination, $result);
 
     // Verify user is now logged in.
     $currentUser = $this->container->get('current_user');
@@ -368,8 +368,8 @@ final class AutoLoginUrlLoginKernelTest extends KernelTestBase {
     $expiredTime = time() - 7200;
     $database->update('auto_login_url')
       ->fields(['timestamp' => $expiredTime])
-      ->range(0, 2)
-      ->execute();
+      
+      ->execute(); // FIXME: range() removed - needs manual fix
 
     // Run cleanup.
     $deletedCount = $this->urlLoginService->cleanupExpiredTokens();

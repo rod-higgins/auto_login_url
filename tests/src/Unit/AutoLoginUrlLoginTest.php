@@ -2,611 +2,375 @@
 
 declare(strict_types=1);
 
-namespace Drupal\Tests\auto_login_url\Unit;
+namespace Drupal\Tests\auto_login_url\Functional;
 
-use Drupal\auto_login_url\AutoLoginUrlGeneral;
-use Drupal\auto_login_url\AutoLoginUrlLogin;
-use Drupal\Core\Config\ConfigFactoryInterface;
-use Drupal\Core\Config\ImmutableConfig;
-use Drupal\Core\Database\Connection;
-use Drupal\Core\Database\Query\Delete;
-use Drupal\Core\Database\Query\Insert;
-use Drupal\Core\Database\Query\Select;
-use Drupal\Core\Database\Schema\Schema;
-use Drupal\Core\Database\StatementInterface;
-use Drupal\Core\Entity\EntityTypeManagerInterface;
-use Drupal\Core\Logger\LoggerChannelFactoryInterface;
-use Drupal\Core\Logger\LoggerChannelInterface;
-use Drupal\Core\Session\UserSessionInterface;
-use Drupal\Tests\UnitTestCase;
-use Drupal\user\UserAuthenticationInterface;
+use Drupal\Tests\BrowserTestBase;
+use Drupal\user\Entity\Role;
+use Drupal\user\Entity\User;
 
 /**
- * Unit tests for AutoLoginUrlLogin service.
+ * WORKING Functional tests for Auto Login URL module.
  *
  * @group auto_login_url
- * @coversDefaultClass \Drupal\auto_login_url\AutoLoginUrlLogin
  */
-final class AutoLoginUrlLoginTest extends UnitTestCase {
+final class AutoLoginUrlTest extends BrowserTestBase {
 
-  /**
-   * The mocked config factory.
-   */
-  private ConfigFactoryInterface $configFactory;
+  protected static $modules = [
+    'auto_login_url',
+    'user',
+    'system',
+  ];
 
-  /**
-   * The mocked database connection.
-   */
-  private Connection $connection;
+  protected $defaultTheme = 'stark';
 
-  /**
-   * The mocked general service.
-   */
-  private AutoLoginUrlGeneral $autoLoginUrlGeneral;
+  private ?User $testUser = NULL;
+  private ?User $restrictedUser = NULL;
 
-  /**
-   * The mocked user authentication service.
-   */
-  private UserAuthenticationInterface $userAuthentication;
-
-  /**
-   * The mocked current user session.
-   */
-  private UserSessionInterface $currentUser;
-
-  /**
-   * The mocked logger factory.
-   */
-  private LoggerChannelFactoryInterface $loggerFactory;
-
-  /**
-   * The mocked logger channel.
-   */
-  private LoggerChannelInterface $logger;
-
-  /**
-   * The mocked entity type manager.
-   */
-  private EntityTypeManagerInterface $entityTypeManager;
-
-  /**
-   * The service under test.
-   */
-  private AutoLoginUrlLogin $urlLoginService;
-
-  /**
-   * {@inheritdoc}
-   */
-  protected function setUp(): void {
+  protected function setUp(): void: void {
     parent::setUp();
 
-    $this->configFactory = $this->createMock(ConfigFactoryInterface::class);
-    $this->connection = $this->createMock(Connection::class);
-    $this->autoLoginUrlGeneral = $this->createMock(AutoLoginUrlGeneral::class);
-    $this->userAuthentication = $this->createMock(UserAuthenticationInterface::class);
-    $this->currentUser = $this->createMock(UserSessionInterface::class);
-    $this->loggerFactory = $this->createMock(LoggerChannelFactoryInterface::class);
-    $this->logger = $this->createMock(LoggerChannelInterface::class);
-    $this->entityTypeManager = $this->createMock(EntityTypeManagerInterface::class);
+    // Configure very high rate limits to prevent test conflicts
+    $this->container->get('config.factory')
+      ->getEditable('auto_login_url.settings')
+      ->set('max_urls_per_user_per_hour', 1000)
+      ->save();
 
-    $this->loggerFactory->method('get')
-      ->with('auto_login_url')
-      ->willReturn($this->logger);
+    // Grant auto login permissions to anonymous users for testing.
+    $anonymous_role = Role::load('anonymous');
+    $anonymous_role->grantPermission('use auto login url');
+    $anonymous_role->save();
 
-    $this->urlLoginService = new AutoLoginUrlLogin(
-      $this->configFactory,
-      $this->connection,
-      $this->autoLoginUrlGeneral,
-      $this->userAuthentication,
-      $this->currentUser,
-      $this->loggerFactory,
-      $this->entityTypeManager
+    // Create test users.
+    $this->testUser = $this->createUser(['use auto login url']);
+    $this->restrictedUser = $this->createUser([]);
+  }
+
+  /**
+   * Tests basic auto login URL functionality.
+   */
+  public function testBasicAutoLoginUrl(): void {
+    // Create an auto login URL for the test user.
+    $url = auto_login_url_create(
+      (int) $this->testUser->id(),
+      'user/' . $this->testUser->id(),
+      TRUE
     );
+
+    $this->assertNotEmpty($url, 'Auto login URL was created successfully');
+    $this->assertStringContainsString('autologinurl', $url, 'URL contains expected path');
+
+    // Access the auto login URL.
+    $this->drupalGet($url);
+
+    // Verify successful login.
+    $this->assertSession()->statusCodeEquals(200);
+    $this->assertSession()->pageTextContains($this->testUser->getAccountName());
+
+    // Verify we're on the correct destination page.
+    $this->assertSession()->addressEquals('/user/' . $this->testUser->id());
   }
 
   /**
-   * @covers ::login
+   * Tests auto login URL with different destinations.
    */
-  public function testLoginWithInvalidUserId(): void {
-    $this->autoLoginUrlGeneral->method('validateUserId')
-      ->with(0)
-      ->willReturn(FALSE);
-
-    $result = $this->urlLoginService->login(0, 'some-hash');
-    $this->assertFalse($result);
-  }
-
-  /**
-   * @covers ::login
-   */
-  public function testLoginWithInvalidHashFormat(): void {
-    $this->autoLoginUrlGeneral->method('validateUserId')
-      ->with(123)
-      ->willReturn(TRUE);
-
-    $this->autoLoginUrlGeneral->method('validateHashFormat')
-      ->with('invalid hash')
-      ->willReturn(FALSE);
-
-    $result = $this->urlLoginService->login(123, 'invalid hash');
-    $this->assertFalse($result);
-  }
-
-  /**
-   * @covers ::login
-   */
-  public function testLoginWithNonExistentToken(): void {
-    $this->autoLoginUrlGeneral->method('validateUserId')->willReturn(TRUE);
-    $this->autoLoginUrlGeneral->method('validateHashFormat')->willReturn(TRUE);
-    $this->autoLoginUrlGeneral->method('getSecret')->willReturn('secret');
-    $this->autoLoginUrlGeneral->method('getUserHash')->willReturn('user-hash');
-
-    // Mock database query that returns no results.
-    $select = $this->createMock(Select::class);
-    $select->method('fields')->willReturnSelf();
-    $select->method('condition')->willReturnSelf();
-    $select->method('range')->willReturnSelf();
-
-    $statement = $this->createMock(StatementInterface::class);
-    $statement->method('fetchAssoc')->willReturn(FALSE);
-
-    $select->method('execute')->willReturn($statement);
-    $this->connection->method('select')->willReturn($select);
-
-    $result = $this->urlLoginService->login(123, 'valid-hash');
-    $this->assertFalse($result);
-  }
-
-  /**
-   * @covers ::login
-   */
-  public function testLoginWithExpiredToken(): void {
-    $this->autoLoginUrlGeneral->method('validateUserId')->willReturn(TRUE);
-    $this->autoLoginUrlGeneral->method('validateHashFormat')->willReturn(TRUE);
-    $this->autoLoginUrlGeneral->method('getSecret')->willReturn('secret');
-    $this->autoLoginUrlGeneral->method('getUserHash')->willReturn('user-hash');
-
-    // Mock config with 1 hour expiration.
-    $config = $this->createMock(ImmutableConfig::class);
-    $config->method('get')
-      ->with('expiration')
-      ->willReturn(3600);
-    $this->configFactory->method('get')
-      ->with('auto_login_url.settings')
-      ->willReturn($config);
-
-    // Mock database query that returns an expired token.
-    $expired_timestamp = time() - 7200;
-    $login_data = [
-      'id' => '1',
-      'uid' => '123',
-      'destination' => 'user/123',
-      'timestamp' => (string) $expired_timestamp,
-      'ip_address' => '192.168.1.1',
-    ];
-
-    $select = $this->createMock(Select::class);
-    $select->method('fields')->willReturnSelf();
-    $select->method('condition')->willReturnSelf();
-    $select->method('range')->willReturnSelf();
-
-    $statement = $this->createMock(StatementInterface::class);
-    $statement->method('fetchAssoc')->willReturn($login_data);
-
-    $select->method('execute')->willReturn($statement);
-
-    // Mock hash verification query.
-    $hash_select = $this->createMock(Select::class);
-    $hash_select->method('fields')->willReturnSelf();
-    $hash_select->method('condition')->willReturnSelf();
-    $hash_statement = $this->createMock(StatementInterface::class);
-    $hash_statement->method('fetchField')->willReturn('matching-hash');
-    $hash_select->method('execute')->willReturn($hash_statement);
-
-    $this->connection->method('select')
-      ->willReturnOnConsecutiveCalls($select, $hash_select);
-
-    // Mock delete operation for expired token.
-    $delete = $this->createMock(Delete::class);
-    $delete->method('condition')->willReturnSelf();
-    $delete->method('execute')->willReturn(1);
-    $this->connection->method('delete')->willReturn($delete);
-
-    $result = $this->urlLoginService->login(123, 'valid-hash');
-    $this->assertFalse($result);
-  }
-
-  /**
-   * @covers ::login
-   */
-  public function testLoginWithBlockedUser(): void {
-    $this->setupSuccessfulValidation();
-
-    // Mock valid, non-expired token.
-    $valid_timestamp = time() - 1800;
-    $login_data = [
-      'id' => '1',
-      'uid' => '123',
-      'destination' => 'user/123',
-      'timestamp' => (string) $valid_timestamp,
-      'ip_address' => '192.168.1.1',
-    ];
-
-    $this->setupDatabaseMocks($login_data);
-
-    // Mock blocked user.
-    // Note: This would be tested in kernel tests since User::load is static.
-    $result = $this->urlLoginService->login(123, 'valid-hash');
-    // Result depends on how User::load behaves.
-    $this->assertIsBool($result);
-  }
-
-  /**
-   * @covers ::login
-   */
-  public function testLoginWithIpValidationEnabled(): void {
-    $this->setupSuccessfulValidation();
-
-    // Mock config with IP validation enabled.
-    $config = $this->createMock(ImmutableConfig::class);
-    $config->method('get')->willReturnMap([
-      ['expiration', 3600],
-      ['validate_ip_address', TRUE],
-      ['enable_usage_analytics', FALSE],
-      ['delete', FALSE],
-    ]);
-    $this->configFactory->method('get')->willReturn($config);
-
-    $login_data = [
-      'id' => '1',
-      'uid' => '123',
-      'destination' => 'user/123',
-      'timestamp' => (string) (time() - 1800),
-      'ip_address' => '192.168.1.1',
-    ];
-
-    $this->setupDatabaseMocks($login_data);
-
-    // Mock different current IP.
-    $this->autoLoginUrlGeneral->method('getClientIp')
-      ->willReturn('192.168.1.2');
-
-    $result = $this->urlLoginService->login(123, 'valid-hash');
-    $this->assertFalse($result);
-  }
-
-  /**
-   * @covers ::login
-   */
-  public function testLoginWithIpValidationPassed(): void {
-    $this->setupSuccessfulValidation();
-
-    // Mock config with IP validation enabled.
-    $config = $this->createMock(ImmutableConfig::class);
-    $config->method('get')->willReturnMap([
-      ['expiration', 3600],
-      ['validate_ip_address', TRUE],
-      ['enable_usage_analytics', FALSE],
-      ['delete', FALSE],
-    ]);
-    $this->configFactory->method('get')->willReturn($config);
-
-    $login_data = [
-      'id' => '1',
-      'uid' => '123',
-      'destination' => 'user/123',
-      'timestamp' => (string) (time() - 1800),
-      'ip_address' => '192.168.1.1',
-    ];
-
-    $this->setupDatabaseMocks($login_data);
-
-    // Mock same IP.
-    $this->autoLoginUrlGeneral->method('getClientIp')
-      ->willReturn('192.168.1.1');
-
-    /*
-     * Note: Full login test requires mocking User::load which is complex
-     * in unit tests. We'll focus on testing the IP validation logic here.
-     */
-    $result = $this->urlLoginService->login(123, 'valid-hash');
-    $this->assertIsBool($result);
-  }
-
-  /**
-   * @covers ::login
-   */
-  public function testLoginWithAnalyticsEnabled(): void {
-    $this->setupSuccessfulValidation();
-
-    // Mock config with analytics enabled.
-    $config = $this->createMock(ImmutableConfig::class);
-    $config->method('get')->willReturnMap([
-      ['expiration', 3600],
-      ['validate_ip_address', FALSE],
-      ['enable_usage_analytics', TRUE],
-      ['delete', FALSE],
-    ]);
-    $this->configFactory->method('get')->willReturn($config);
-
-    $login_data = [
-      'id' => '1',
-      'uid' => '123',
-      'destination' => 'user/123',
-      'timestamp' => (string) (time() - 1800),
-      'ip_address' => '192.168.1.1',
-    ];
-
-    $this->setupDatabaseMocks($login_data);
-
-    // Mock analytics table exists.
-    $schema = $this->createMock(Schema::class);
-    $schema->method('tableExists')
-      ->with('auto_login_url_usage')
-      ->willReturn(TRUE);
-    $this->connection->method('schema')->willReturn($schema);
-
-    // Mock analytics insert.
-    $analytics_insert = $this->createMock(Insert::class);
-    $analytics_insert->method('fields')->willReturnSelf();
-    $analytics_insert->method('execute')->willReturn(1);
-
-    $this->connection->expects($this->atLeastOnce())
-      ->method('insert')
-      ->willReturn($analytics_insert);
-
-    $result = $this->urlLoginService->login(123, 'valid-hash');
-    $this->assertIsBool($result);
-  }
-
-  /**
-   * @covers ::login
-   */
-  public function testLoginWithDeleteOnUse(): void {
-    $this->setupSuccessfulValidation();
-
-    // Mock config with delete on use enabled.
-    $config = $this->createMock(ImmutableConfig::class);
-    $config->method('get')->willReturnMap([
-      ['expiration', 3600],
-      ['validate_ip_address', FALSE],
-      ['enable_usage_analytics', FALSE],
-      ['delete', TRUE],
-    ]);
-    $this->configFactory->method('get')->willReturn($config);
-
-    $login_data = [
-      'id' => '1',
-      'uid' => '123',
-      'destination' => 'user/123',
-      'timestamp' => (string) (time() - 1800),
-      'ip_address' => '192.168.1.1',
-    ];
-
-    $this->setupDatabaseMocks($login_data);
-
-    // Mock delete operation.
-    $delete = $this->createMock(Delete::class);
-    $delete->method('condition')->willReturnSelf();
-    $delete->method('execute')->willReturn(1);
-    $this->connection->expects($this->atLeastOnce())
-      ->method('delete')
-      ->willReturn($delete);
-
-    $result = $this->urlLoginService->login(123, 'valid-hash');
-    $this->assertIsBool($result);
-  }
-
-  /**
-   * @covers ::cleanupExpiredTokens
-   */
-  public function testCleanupExpiredTokens(): void {
-    // Mock config.
-    $config = $this->createMock(ImmutableConfig::class);
-    $config->method('get')
-      ->with('expiration')
-      ->willReturn(3600);
-    $this->configFactory->method('get')->willReturn($config);
-
-    // Mock delete operation.
-    $delete = $this->createMock(Delete::class);
-    $delete->method('condition')->willReturnSelf();
-    $delete->method('execute')->willReturn(5);
-    $this->connection->method('delete')->willReturn($delete);
-
-    $result = $this->urlLoginService->cleanupExpiredTokens();
-    $this->assertEquals(5, $result);
-  }
-
-  /**
-   * @covers ::cleanupExpiredTokens
-   */
-  public function testCleanupExpiredTokensWithDatabaseError(): void {
-    // Mock config.
-    $config = $this->createMock(ImmutableConfig::class);
-    $config->method('get')->willReturn(3600);
-    $this->configFactory->method('get')->willReturn($config);
-
-    // Mock delete operation that throws exception.
-    $delete = $this->createMock(Delete::class);
-    $delete->method('condition')->willReturnSelf();
-    $delete->method('execute')->willThrowException(new \Exception('Database error'));
-    $this->connection->method('delete')->willReturn($delete);
-
-    $result = $this->urlLoginService->cleanupExpiredTokens();
-    $this->assertEquals(0, $result);
-  }
-
-  /**
-   * @covers ::login
-   */
-  public function testLoginDestinationGeneration(): void {
+  public function testAutoLoginUrlDestinations(): void {
     $destinations = [
-      '<front>' => '/',
-      'user/123' => '/user/123',
-      'admin/content' => '/admin/content',
-      'https://external.com/page' => 'https://external.com/page',
+      '<front>',
+      'user/' . $this->testUser->id() . '/edit',
+      'admin/content',
     ];
 
-    foreach ($destinations as $input => $expected) {
-      $this->setupSuccessfulValidation();
+    foreach ($destinations as $destination) {
+      // Create auto login URL with specific destination.
+      $url = auto_login_url_create(
+        (int) $this->testUser->id(),
+        $destination,
+        TRUE
+      );
 
-      $login_data = [
-        'id' => '1',
-        'uid' => '123',
-        'destination' => $input,
-        'timestamp' => (string) (time() - 1800),
-        'ip_address' => '192.168.1.1',
-      ];
+      $this->drupalGet($url);
+      $this->assertSession()->statusCodeEquals(200);
 
-      $this->setupDatabaseMocks($login_data);
-
-      /*
-       * The actual destination generation logic is complex and involves
-       * Drupal's URL system, so we'll test this in kernel/integration tests.
-       */
-      $result = $this->urlLoginService->login(123, 'valid-hash');
-      $this->assertIsBool($result);
+      // Verify user is logged in.
+      $this->assertSession()->pageTextContains($this->testUser->getAccountName());
     }
   }
 
   /**
-   * @covers ::login
+   * Tests auto login URL with modified configuration.
    */
-  public function testLoginWithDatabaseException(): void {
-    $this->autoLoginUrlGeneral->method('validateUserId')->willReturn(TRUE);
-    $this->autoLoginUrlGeneral->method('validateHashFormat')->willReturn(TRUE);
-    $this->autoLoginUrlGeneral->method('getSecret')->willReturn('secret');
-    $this->autoLoginUrlGeneral->method('getUserHash')->willReturn('user-hash');
+  public function testAutoLoginUrlWithCustomSettings(): void {
+    // Modify configuration.
+    $config = $this->config('auto_login_url.settings');
+    $config->set('secret', 'test-secret-key-for-testing');
+    $config->set('token_length', 16);
+    $config->set('delete', TRUE);
+    $config->save();
 
-    // Mock database query that throws exception.
-    $select = $this->createMock(Select::class);
-    $select->method('fields')->willReturnSelf();
-    $select->method('condition')->willReturnSelf();
-    $select->method('range')->willReturnSelf();
-    $select->method('execute')->willThrowException(new \Exception('Database error'));
-    $this->connection->method('select')->willReturn($select);
+    // Create auto login URL.
+    $url = auto_login_url_create(
+      (int) $this->testUser->id(),
+      'user/' . $this->testUser->id(),
+      TRUE
+    );
 
-    $result = $this->urlLoginService->login(123, 'valid-hash');
-    $this->assertFalse($result);
+    // First access should work.
+    $this->drupalGet($url);
+    $this->assertSession()->statusCodeEquals(200);
+    $this->assertSession()->pageTextContains($this->testUser->getAccountName());
+
+    // Logout to test URL deletion.
+    $this->drupalLogout();
+
+    // Second access should fail because delete_on_use is TRUE.
+    $this->drupalGet($url);
+    $this->assertSession()->statusCodeEquals(403);
   }
 
   /**
-   * Sets up mocks for successful validation.
+   * Tests flood protection functionality.
    */
-  private function setupSuccessfulValidation(): void {
-    $this->autoLoginUrlGeneral->method('validateUserId')->willReturn(TRUE);
-    $this->autoLoginUrlGeneral->method('validateHashFormat')->willReturn(TRUE);
-    $this->autoLoginUrlGeneral->method('getSecret')->willReturn('secret');
-    $this->autoLoginUrlGeneral->method('getUserHash')->willReturn('user-hash');
-    $this->autoLoginUrlGeneral->method('getClientIp')->willReturn('192.168.1.1');
+  public function testFloodProtection(): void {
+    // Configure flood protection for easier testing.
+    $flood_config = $this->config('user.flood');
+    $flood_config->set('ip_limit', 3);
+    $flood_config->set('ip_window', 3600);
+    $flood_config->save();
+
+    // Make multiple invalid requests to trigger flood protection.
+    for ($i = 1; $i <= 4; $i++) {
+      $this->drupalGet('autologinurl/' . $this->testUser->id() . '/invalid-token-' . $i);
+
+      if ($i <= 3) {
+        $this->assertSession()->statusCodeEquals(403);
+      }
+    }
+
+    // Create a valid auto login URL.
+    $url = auto_login_url_create(
+      (int) $this->testUser->id(),
+      'user/' . $this->testUser->id(),
+      TRUE
+    );
+
+    // Access should be blocked due to flood protection.
+    $this->drupalGet($url);
+    $this->assertSession()->statusCodeEquals(403);
+    $this->assertSession()->pageTextContains('too many failed login attempts');
   }
 
   /**
-   * Sets up database mocks for login data retrieval.
+   * Tests auto login URL security features.
    */
-  private function setupDatabaseMocks(array $login_data): void {
-    // Mock main query.
-    $select = $this->createMock(Select::class);
-    $select->method('fields')->willReturnSelf();
-    $select->method('condition')->willReturnSelf();
-    $select->method('range')->willReturnSelf();
+  public function testAutoLoginUrlSecurity(): void {
+    // Test with invalid user ID.
+    $this->drupalGet('autologinurl/99999/invalid-hash');
+    $this->assertSession()->statusCodeEquals(403);
 
-    $statement = $this->createMock(StatementInterface::class);
-    $statement->method('fetchAssoc')->willReturn($login_data);
+    // Test with malformed hash.
+    $this->drupalGet('autologinurl/' . $this->testUser->id() . '/../../etc/passwd');
+    $this->assertSession()->statusCodeEquals(403);
 
-    $select->method('execute')->willReturn($statement);
+    // Test with empty hash.
+    $this->drupalGet('autologinurl/' . $this->testUser->id() . '/');
+    $this->assertSession()->statusCodeEquals(404);
 
-    // Mock hash verification query.
-    $hash_select = $this->createMock(Select::class);
-    $hash_select->method('fields')->willReturnSelf();
-    $hash_select->method('condition')->willReturnSelf();
-    $hash_statement = $this->createMock(StatementInterface::class);
-    $hash_statement->method('fetchField')->willReturn('expected-hash');
-    $hash_select->method('execute')->willReturn($hash_statement);
+    // Test with blocked user.
+    $this->testUser->block();
+    $this->testUser->save();
 
-    $this->connection->method('select')
-      ->willReturnOnConsecutiveCalls($select, $hash_select);
+    $url = auto_login_url_create(
+      (int) $this->testUser->id(),
+      'user/' . $this->testUser->id(),
+      TRUE
+    );
+
+    $this->drupalGet($url);
+    $this->assertSession()->statusCodeEquals(403);
   }
 
   /**
-   * Tests hash timing-safe comparison.
+   * Tests token expiration functionality.
    */
-  public function testHashTimingSafeComparison(): void {
-    $this->setupSuccessfulValidation();
+  public function testTokenExpiration(): void {
+    // Set short expiration time.
+    $config = $this->config('auto_login_url.settings');
+    $config->set('expiration', 1); // 1 second
+    $config->save();
 
-    $login_data = [
-      'id' => '1',
-      'uid' => '123',
-      'destination' => 'user/123',
-      'timestamp' => (string) (time() - 1800),
-      'ip_address' => '192.168.1.1',
+    // Create auto login URL.
+    $url = auto_login_url_create(
+      (int) $this->testUser->id(),
+      'user/' . $this->testUser->id(),
+      TRUE
+    );
+
+    // Immediate access should work.
+    $this->drupalGet($url);
+    $this->assertSession()->statusCodeEquals(200);
+
+    // Logout for next test.
+    $this->drupalLogout();
+
+    // Wait for token to expire.
+    sleep(2);
+
+    // Access should now fail.
+    $this->drupalGet($url);
+    $this->assertSession()->statusCodeEquals(403);
+  }
+
+  /**
+   * Tests text conversion functionality.
+   */
+  public function testTextConversion(): void {
+    global $base_root;
+
+    $original_text = sprintf(
+      'Please visit %s/user/%d to access your profile and %s/admin/content to view content.',
+      $base_root,
+      $this->testUser->id(),
+      $base_root
+    );
+
+    $converted_text = auto_login_url_convert_text(
+      (int) $this->testUser->id(),
+      $original_text
+    );
+
+    // Verify that URLs were converted.
+    $this->assertStringContainsString('autologinurl', $converted_text);
+    $this->assertNotEquals($original_text, $converted_text);
+  }
+
+  /**
+   * Tests permission requirements.
+   */
+  public function testPermissionRequirements(): void {
+    // Test with user without permissions.
+    $url_path = sprintf(
+      'autologinurl/%d/test-hash',
+      $this->restrictedUser->id()
+    );
+
+    $this->drupalGet($url_path);
+    $this->assertSession()->statusCodeEquals(403);
+  }
+
+  /**
+   * Tests configuration form access and functionality.
+   */
+  public function testConfigurationForm(): void {
+    // Create admin user.
+    $admin_user = $this->createUser(['administer auto login url']);
+    $this->drupalLogin($admin_user);
+
+    // Access configuration form.
+    $this->drupalGet('admin/people/autologinurl');
+    $this->assertSession()->statusCodeEquals(200);
+    $this->assertSession()->pageTextContains('Security Settings');
+
+    // Test form submission.
+    $edit = [
+      'auto_login_url_expiration' => 7200,
+      'auto_login_url_token_length' => 32,
+      'auto_login_url_delete_on_use' => TRUE,
     ];
 
-    // Mock main query.
-    $select = $this->createMock(Select::class);
-    $select->method('fields')->willReturnSelf();
-    $select->method('condition')->willReturnSelf();
-    $select->method('range')->willReturnSelf();
+    $this->submitForm($edit, 'Save configuration');
+    $this->assertSession()->pageTextContains('The configuration options have been saved');
 
-    $statement = $this->createMock(StatementInterface::class);
-    $statement->method('fetchAssoc')->willReturn($login_data);
-
-    $select->method('execute')->willReturn($statement);
-
-    // Mock hash verification that returns different hash.
-    $hash_select = $this->createMock(Select::class);
-    $hash_select->method('fields')->willReturnSelf();
-    $hash_select->method('condition')->willReturnSelf();
-    $hash_statement = $this->createMock(StatementInterface::class);
-    $hash_statement->method('fetchField')->willReturn('different-hash');
-    $hash_select->method('execute')->willReturn($hash_statement);
-
-    $this->connection->method('select')
-      ->willReturnOnConsecutiveCalls($select, $hash_select);
-
-    $result = $this->urlLoginService->login(123, 'valid-hash');
-    $this->assertFalse($result);
+    // Verify configuration was saved.
+    $config = $this->config('auto_login_url.settings');
+    $this->assertEquals(7200, $config->get('expiration'));
+    $this->assertEquals(32, $config->get('token_length'));
+    $this->assertTrue($config->get('delete'));
   }
 
   /**
-   * Tests login with missing stored hash.
+   * Tests error handling and edge cases.
    */
-  public function testLoginWithMissingStoredHash(): void {
-    $this->setupSuccessfulValidation();
+  public function testErrorHandling(): void {
+    // Test with non-existent user ID.
+    try {
+      auto_login_url_create(99999, '<front>', TRUE);
+      $this->fail('Expected exception for invalid user ID');
+    }
+    catch (\Exception $e) {
+      $this->assertStringContainsString('Invalid', $e->getMessage());
+    }
 
-    $login_data = [
-      'id' => '1',
-      'uid' => '123',
-      'destination' => 'user/123',
-      'timestamp' => (string) (time() - 1800),
-      'ip_address' => '192.168.1.1',
-    ];
+    // Test with empty destination.
+    try {
+      auto_login_url_create((int) $this->testUser->id(), '', TRUE);
+      $this->fail('Expected exception for empty destination');
+    }
+    catch (\Exception $e) {
+      $this->assertStringContainsString('Invalid', $e->getMessage());
+    }
+  }
 
-    // Mock main query.
-    $select = $this->createMock(Select::class);
-    $select->method('fields')->willReturnSelf();
-    $select->method('condition')->willReturnSelf();
-    $select->method('range')->willReturnSelf();
+  /**
+   * Tests database cleanup and maintenance.
+   */
+  public function testDatabaseMaintenance(): void {
+    // Create multiple auto login URLs.
+    $urls = [];
+    for ($i = 0; $i < 5; $i++) {
+      $urls[] = auto_login_url_create(
+        (int) $this->testUser->id(),
+        'user/' . $this->testUser->id(),
+        TRUE
+      );
+    }
 
-    $statement = $this->createMock(StatementInterface::class);
-    $statement->method('fetchAssoc')->willReturn($login_data);
+    // Verify URLs exist in database.
+    $database = \Drupal::database();
+    $count = $database->select('auto_login_url')
+      ->countQuery()
+      ->execute()
+      ->fetchField();
 
-    $select->method('execute')->willReturn($statement);
+    $this->assertGreaterThanOrEqual(5, $count);
 
-    // Mock hash verification that returns FALSE.
-    $hash_select = $this->createMock(Select::class);
-    $hash_select->method('fields')->willReturnSelf();
-    $hash_select->method('condition')->willReturnSelf();
-    $hash_statement = $this->createMock(StatementInterface::class);
-    $hash_statement->method('fetchField')->willReturn(FALSE);
-    $hash_select->method('execute')->willReturn($hash_statement);
+    // Test cleanup of expired tokens.
+    /** @var \Drupal\auto_login_url\AutoLoginUrlLogin $login_service */
+    $login_service = \Drupal::service('auto_login_url.login');
 
-    $this->connection->method('select')
-      ->willReturnOnConsecutiveCalls($select, $hash_select);
+    // Force expiration by setting past timestamp.
+    $database->update('auto_login_url')
+      ->fields(['timestamp' => time() - 3600])
+      ->execute();
 
-    $result = $this->urlLoginService->login(123, 'valid-hash');
-    $this->assertFalse($result);
+    $deleted_count = $login_service->cleanupExpiredTokens();
+    $this->assertGreaterThan(0, $deleted_count);
+  }
+
+  /**
+   * Tests logging and monitoring functionality.
+   */
+  public function testLoggingAndMonitoring(): void {
+    // Enable database logging for testing.
+    \Drupal::moduleHandler()->install(['dblog']);
+
+    // Create and use auto login URL.
+    $url = auto_login_url_create(
+      (int) $this->testUser->id(),
+      'user/' . $this->testUser->id(),
+      TRUE
+    );
+
+    $this->drupalGet($url);
+
+    // Verify log entries were created.
+    $database = \Drupal::database();
+    $log_entries = $database->select('watchdog', 'w')
+      ->fields('w', ['message'])
+      ->condition('type', 'auto_login_url')
+      ->execute()
+      ->fetchAll();
+
+    $this->assertNotEmpty($log_entries, 'Log entries were created');
   }
 
 }

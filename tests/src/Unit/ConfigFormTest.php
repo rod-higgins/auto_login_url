@@ -58,7 +58,7 @@ final class ConfigFormTest extends UnitTestCase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp(): void {
+  protected function setUp(): void: void {
     parent::setUp();
 
     $this->configFactory = $this->createMock(ConfigFactoryInterface::class);

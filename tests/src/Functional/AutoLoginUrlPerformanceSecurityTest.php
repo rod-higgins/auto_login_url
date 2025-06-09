@@ -44,7 +44,7 @@ final class AutoLoginUrlPerformanceSecurityTest extends BrowserTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp(): void {
+  protected function setUp(): void: void {
     parent::setUp();
 
     // Grant permissions.
@@ -85,8 +85,8 @@ final class AutoLoginUrlPerformanceSecurityTest extends BrowserTestBase {
 
     // All URLs should be valid format.
     foreach ($urls as $url) {
-      $this->assertStringContains('autologinurl', $url);
-      $this->assertStringContains((string) $this->testUser->id(), $url);
+      $this->assertStringContainsString('autologinurl', $url);
+      $this->assertStringContainsString((string) $this->testUser->id(), $url);
     }
   }
 
@@ -315,7 +315,7 @@ final class AutoLoginUrlPerformanceSecurityTest extends BrowserTestBase {
       $this->fail('Expected rate limit exception');
     }
     catch (\Exception $e) {
-      $this->assertStringContains('Rate limit exceeded', $e->getMessage());
+      $this->assertStringContainsString('Rate limit exceeded', $e->getMessage());
     }
   }
 

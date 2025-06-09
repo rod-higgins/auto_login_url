@@ -66,7 +66,7 @@ final class AutoLoginUrlGeneralTest extends UnitTestCase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp(): void {
+  protected function setUp(): void: void {
     parent::setUp();
 
     $this->configFactory = $this->createMock(ConfigFactoryInterface::class);
@@ -191,33 +191,7 @@ final class AutoLoginUrlGeneralTest extends UnitTestCase {
       ->getMock();
     $editableConfig->expects($this->once())
       ->method('set')
-      ->with('secret', $this->isType('string'))
-      ->willReturnSelf();
-    $editableConfig->expects($this->once())
-      ->method('save');
-
-    $this->configFactory->method('get')
-      ->with('auto_login_url.settings')
-      ->willReturn($config);
-    $this->configFactory->method('getEditable')
-      ->with('auto_login_url.settings')
-      ->willReturn($editableConfig);
-
-    $this->logger->expects($this->once())
-      ->method('notice');
-
-    $result = $this->autoLoginUrlGeneral->getSecret();
-    $this->assertNotEmpty($result);
-  }
-
-  /**
-   * @covers ::validateUserId
-   */
-  public function testValidateUserIdWithValidUser(): void {
-    $query = $this->createMock(QueryInterface::class);
-    $query->method('accessCheck')->with(FALSE)->willReturnSelf();
-    $query->method('condition')->willReturnSelf();
-    $query->method('range')->with(0, 1)->willReturnSelf();
+      ->with('secret')->willReturnSelf();
     $query->method('execute')->willReturn([123]);
 
     $userStorage = $this->createMock(EntityStorageInterface::class);

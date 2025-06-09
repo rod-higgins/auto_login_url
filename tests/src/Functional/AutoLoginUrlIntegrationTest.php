@@ -44,7 +44,7 @@ final class AutoLoginUrlIntegrationTest extends BrowserTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp(): void {
+  protected function setUp(): void: void {
     parent::setUp();
 
     // Grant permissions to anonymous users for testing.
@@ -92,7 +92,7 @@ final class AutoLoginUrlIntegrationTest extends BrowserTestBase {
     );
 
     $this->assertNotEmpty($url);
-    $this->assertStringContains('autologinurl', $url);
+    $this->assertStringContainsString('autologinurl', $url);
 
     // Step 3: Log out admin and test the auto login URL.
     $this->drupalLogout();
@@ -131,7 +131,7 @@ final class AutoLoginUrlIntegrationTest extends BrowserTestBase {
 
     // Verify text was converted.
     $this->assertNotEquals($original_text, $converted_text);
-    $this->assertStringContains('autologinurl', $converted_text);
+    $this->assertStringContainsString('autologinurl', $converted_text);
 
     // Extract auto login URLs from converted text.
     preg_match_all('/https?:\/\/[^\s]+autologinurl[^\s]+/', $converted_text, $matches);
@@ -186,7 +186,7 @@ final class AutoLoginUrlIntegrationTest extends BrowserTestBase {
       $this->fail('Expected rate limit exception');
     }
     catch (\Exception $e) {
-      $this->assertStringContains('Rate limit exceeded', $e->getMessage());
+      $this->assertStringContainsString('Rate limit exceeded', $e->getMessage());
     }
 
     // Verify first two URLs still work.
@@ -358,8 +358,8 @@ final class AutoLoginUrlIntegrationTest extends BrowserTestBase {
     $expired_time = time() - 7200;
     $database->update('auto_login_url')
       ->fields(['timestamp' => $expired_time])
-      ->range(0, 3)
-      ->execute();
+      
+      ->execute(); // FIXME: range() removed - needs manual fix
 
     // Test manual cleanup.
     $this->drupalGet('admin/people/autologinurl');
@@ -502,7 +502,7 @@ final class AutoLoginUrlIntegrationTest extends BrowserTestBase {
       ->execute();
 
     // Run cron.
-    $this->cronRun();
+    \Drupal::service('cron')->run();
 
     // Verify expired tokens were cleaned up.
     $count = $database->select('auto_login_url')

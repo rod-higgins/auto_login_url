@@ -42,7 +42,7 @@ final class AutoLoginUrlTest extends BrowserTestBase {
   /**
    * {@inheritdoc}
    */
-  protected function setUp(): void {
+  protected function setUp(): void: void {
     parent::setUp();
 
     // Grant auto login permissions to anonymous users for testing.
@@ -67,7 +67,7 @@ final class AutoLoginUrlTest extends BrowserTestBase {
     );
 
     $this->assertNotEmpty($url, 'Auto login URL was created successfully');
-    $this->assertStringContains('autologinurl', $url, 'URL contains expected path');
+    $this->assertStringContainsString('autologinurl', $url, 'URL contains expected path');
 
     // Access the auto login URL.
     $this->drupalGet($url);
@@ -250,7 +250,7 @@ final class AutoLoginUrlTest extends BrowserTestBase {
     );
 
     // Verify that URLs were converted.
-    $this->assertStringContains('autologinurl', $converted_text);
+    $this->assertStringContainsString('autologinurl', $converted_text);
     $this->assertNotEquals($original_text, $converted_text);
   }
 
@@ -308,7 +308,7 @@ final class AutoLoginUrlTest extends BrowserTestBase {
       $this->fail('Expected exception for invalid user ID');
     }
     catch (\Exception $e) {
-      $this->assertStringContains('Invalid', $e->getMessage());
+      $this->assertStringContainsString('Invalid', $e->getMessage());
     }
 
     // Test with empty destination.
@@ -317,7 +317,7 @@ final class AutoLoginUrlTest extends BrowserTestBase {
       $this->fail('Expected exception for empty destination');
     }
     catch (\Exception $e) {
-      $this->assertStringContains('Invalid', $e->getMessage());
+      $this->assertStringContainsString('Invalid', $e->getMessage());
     }
   }
 
