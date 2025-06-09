@@ -7,6 +7,7 @@ use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Database\Connection;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Logger\LoggerChannelFactoryInterface;
+use Drupal\Core\Session\AccountProxyInterface;
 use Drupal\Core\Site\Settings;
 use Drupal\Core\Url;
 use Drupal\user\UserAuthenticationInterface;
@@ -16,6 +17,41 @@ use Drupal\user\UserInterface;
  * Service for handling auto login URL authentication.
  */
 class AutoLoginUrlLogin {
+
+  /**
+   * The config factory.
+   */
+  private ConfigFactoryInterface $configFactory;
+
+  /**
+   * The database connection.
+   */
+  private Connection $connection;
+
+  /**
+   * The general service.
+   */
+  private AutoLoginUrlGeneral $autoLoginUrlGeneral;
+
+  /**
+   * The user authentication service.
+   */
+  private UserAuthenticationInterface $userAuthentication;
+
+  /**
+   * The current user session.
+   */
+  private AccountProxyInterface $currentUser;
+
+  /**
+   * The logger factory.
+   */
+  private $logger;
+
+  /**
+   * The entity type manager.
+   */
+  private EntityTypeManagerInterface $entityTypeManager;
 
   /**
    * Constructor.
@@ -152,8 +188,6 @@ class AutoLoginUrlLogin {
    * Validates hash and retrieves login data from database.
    */
   private function validateAndRetrieveLoginData(int $uid, string $hash): array|false {
-    $start_time = microtime(TRUE);
-
     try {
       // Generate the key for hash verification.
       $auto_login_url_secret = $this->autoLoginUrlGeneral->getSecret();
@@ -172,41 +206,10 @@ class AutoLoginUrlLogin {
         ->execute()
         ->fetchAssoc();
 
-      $processing_time = round((microtime(TRUE) - $start_time) * 1000, 2);
-
       if (empty($result)) {
-        $this->logger->warning('No matching auto login record found for user @uid (processing time: @time ms)', [
-          '@uid' => $uid,
-          '@time' => $processing_time,
-        ]);
+        $this->logger->warning('No matching auto login record found for user @uid', ['@uid' => $uid]);
         return FALSE;
       }
-
-      // Enhanced security: Check if request IP matches creation IP (optional).
-      $current_ip = $this->autoLoginUrlGeneral->getClientIp();
-      if (!empty($result['ip_address']) && $result['ip_address'] !== $current_ip) {
-        $this->logger->security('Auto login IP mismatch for user @uid: created from @create_ip, used from @current_ip', [
-          '@uid' => $uid,
-          '@create_ip' => $result['ip_address'],
-          '@current_ip' => $current_ip,
-        ]);
-        // Note: Don't fail here as users may legitimately change networks.
-      }
-
-      // Use timing-safe comparison for additional security.
-      $stored_hash = $this->getStoredHash($result['id']);
-      if ($stored_hash === FALSE || !hash_equals($stored_hash, $expected_hash_db)) {
-        $this->logger->warning('Hash verification failed for user @uid (processing time: @time ms)', [
-          '@uid' => $uid,
-          '@time' => $processing_time,
-        ]);
-        return FALSE;
-      }
-
-      $this->logger->info('Successful hash validation for user @uid (processing time: @time ms)', [
-        '@uid' => $uid,
-        '@time' => $processing_time,
-      ]);
 
       return $result;
     }
@@ -220,12 +223,6 @@ class AutoLoginUrlLogin {
 
   /**
    * Validates IP address if IP validation is enabled.
-   *
-   * @param array $login_data
-   *   The login data array.
-   *
-   * @return bool
-   *   TRUE if validation passes, FALSE otherwise.
    */
   private function validateIpAddress(array $login_data): bool {
     $config = $this->configFactory->get('auto_login_url.settings');
@@ -251,9 +248,6 @@ class AutoLoginUrlLogin {
 
   /**
    * Logs URL usage for analytics if enabled.
-   *
-   * @param array $login_data
-   *   The login data array.
    */
   private function logUrlUsage(array $login_data): void {
     $config = $this->configFactory->get('auto_login_url.settings');
@@ -288,38 +282,7 @@ class AutoLoginUrlLogin {
   }
 
   /**
-   * Retrieves stored hash for timing-safe comparison.
-   *
-   * @param string $record_id
-   *   The record ID.
-   *
-   * @return string|false
-   *   The stored hash or FALSE on failure.
-   */
-  private function getStoredHash(string $record_id): string|false {
-    try {
-      return $this->connection->select('auto_login_url', 'a')
-        ->fields('a', ['hash'])
-        ->condition('id', $record_id)
-        ->execute()
-        ->fetchField();
-    }
-    catch (\Exception $e) {
-      $this->logger->error('Failed to retrieve stored hash: @message', [
-        '@message' => $e->getMessage(),
-      ]);
-      return FALSE;
-    }
-  }
-
-  /**
    * Checks if a token has expired.
-   *
-   * @param string $timestamp
-   *   The token creation timestamp.
-   *
-   * @return bool
-   *   TRUE if expired, FALSE otherwise.
    */
   private function isTokenExpired(string $timestamp): bool {
     $config = $this->configFactory->get('auto_login_url.settings');
@@ -330,12 +293,6 @@ class AutoLoginUrlLogin {
 
   /**
    * Loads and validates a user account.
-   *
-   * @param int $uid
-   *   The user ID.
-   *
-   * @return \Drupal\user\UserInterface|false
-   *   The user account or FALSE on failure.
    */
   private function loadAndValidateUser(int $uid): UserInterface|false {
     try {
@@ -370,9 +327,6 @@ class AutoLoginUrlLogin {
 
   /**
    * Performs the user login using modern Drupal APIs.
-   *
-   * @param \Drupal\user\UserInterface $account
-   *   The user account to log in.
    */
   private function performUserLogin(UserInterface $account): void {
     // Use the modern authentication service instead of deprecated function.
@@ -385,9 +339,6 @@ class AutoLoginUrlLogin {
 
   /**
    * Handles post-login cleanup tasks.
-   *
-   * @param string $record_id
-   *   The login record ID.
    */
   private function handlePostLoginCleanup(string $record_id): void {
     $config = $this->configFactory->get('auto_login_url.settings');
@@ -400,9 +351,6 @@ class AutoLoginUrlLogin {
 
   /**
    * Deletes a login record from the database.
-   *
-   * @param string $record_id
-   *   The record ID to delete.
    */
   private function deleteLoginRecord(string $record_id): void {
     try {
@@ -420,12 +368,6 @@ class AutoLoginUrlLogin {
 
   /**
    * Generates the destination URL after login.
-   *
-   * @param string $destination
-   *   The raw destination string.
-   *
-   * @return string
-   *   The formatted destination URL.
    */
   private function generateDestinationUrl(string $destination): string {
     $destination = urldecode($destination);
@@ -454,8 +396,6 @@ class AutoLoginUrlLogin {
 
   /**
    * Cleans up expired tokens from the database.
-   *
-   * This method can be called during cron or other maintenance tasks.
    *
    * @return int
    *   The number of expired tokens removed.
