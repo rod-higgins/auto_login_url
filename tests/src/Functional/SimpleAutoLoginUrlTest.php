@@ -14,16 +14,22 @@ use Drupal\user\Entity\Role;
  */
 final class SimpleAutoLoginUrlTest extends BrowserTestBase {
 
+  /**
+   * {@inheritdoc}
+   */
   protected static $modules = [
     'auto_login_url',
     'user',
     'system',
   ];
 
+  /**
+   * {@inheritdoc}
+   */
   protected $defaultTheme = 'stark';
 
   /**
-   *
+   * {@inheritdoc}
    */
   protected function setUp(): void {
     parent::setUp();
