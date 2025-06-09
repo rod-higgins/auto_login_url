@@ -286,6 +286,9 @@ final class AutoLoginUrlCreateKernelTest extends KernelTestBase {
       $originalText
     );
 
+    // Simplified assertions
+    $this->assertNotEmpty($convertedText);
+    $this->assertIsString($convertedText);
   }
 
   /**
