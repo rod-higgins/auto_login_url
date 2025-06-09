@@ -247,7 +247,7 @@ final class AutoLoginUrlCreateTest extends UnitTestCase {
 
     $result = $mockUrlCreateService->convertText(123, $originalText);
 
-    // Simplified assertions without deprecated string methods
+    // Simplified assertions without deprecated string methods.
     $this->assertNotEmpty($result);
     $this->assertIsString($result);
   }

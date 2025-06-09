@@ -254,7 +254,7 @@ final class AutoLoginUrlTest extends BrowserTestBase {
       $original_text
     );
 
-    // Simplified assertions
+    // Simplified assertions.
     $this->assertNotEmpty($converted_text);
     $this->assertIsString($converted_text);
   }
