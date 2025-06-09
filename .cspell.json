@@ -52,6 +52,17 @@
     "fpasswd",
     "fscript"
   ],
+  "flagWords": [
+    "blacklist",
+    "blacklists", 
+    "blacklisted",
+    "e-mail",
+    "grey",
+    "queuing",
+    "whitelist",
+    "whitelists",
+    "whitelisted"
+  ],
   "dictionaries": ["php", "html", "css", "javascript"],
   "languageSettings": [
     {
