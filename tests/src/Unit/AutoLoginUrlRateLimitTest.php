@@ -64,7 +64,8 @@ final class AutoLoginUrlRateLimitTest extends UnitTestCase {
     $result = $this->rateLimiter->getRateLimitConfig();
 
     $expected = [
-      'limit' => 10, // Default value
+    // Default value.
+      'limit' => 10,
       'window' => 3600,
     ];
 
@@ -201,7 +202,7 @@ final class AutoLoginUrlRateLimitTest extends UnitTestCase {
       ->with([])
       ->willReturn([]);
 
-    // Should not call delete if no rate limiting keys exist
+    // Should not call delete if no rate limiting keys exist.
     $this->state->expects($this->never())
       ->method('delete');
 
