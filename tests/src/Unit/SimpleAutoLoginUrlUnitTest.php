@@ -17,7 +17,7 @@ final class SimpleAutoLoginUrlUnitTest extends UnitTestCase {
    * Tests basic validation functions.
    */
   public function testBasicValidation(): void {
-    // Test user ID validation
+    // Test user ID validation.
     $this->assertFalse($this->isValidUserId(0), 'User ID 0 is invalid.');
     $this->assertFalse($this->isValidUserId(-1), 'Negative user ID is invalid.');
     $this->assertTrue($this->isValidUserId(123), 'Positive user ID is valid.');
@@ -45,4 +45,5 @@ final class SimpleAutoLoginUrlUnitTest extends UnitTestCase {
   private function isValidHashFormat(string $hash): bool {
     return !empty($hash) && strlen($hash) >= 8 && preg_match('/^[A-Za-z0-9_-]+$/', $hash);
   }
+
 }

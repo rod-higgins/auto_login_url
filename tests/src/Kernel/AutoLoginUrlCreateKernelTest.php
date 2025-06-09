@@ -18,6 +18,11 @@ use Drupal\user\UserInterface;
  */
 final class AutoLoginUrlCreateKernelTest extends KernelTestBase {
 
+  /**
+   * The modules to enable.
+   *
+   * @var array
+   */
   protected static $modules = [
     'auto_login_url',
     'system',
@@ -25,11 +30,22 @@ final class AutoLoginUrlCreateKernelTest extends KernelTestBase {
     'field',
   ];
 
+  /**
+   * The auto login URL create service.
+   *
+   * @var \Drupal\auto_login_url\AutoLoginUrlCreate
+   */
   private AutoLoginUrlCreate $urlCreateService;
+
+  /**
+   * Test user account.
+   *
+   * @var \Drupal\user\UserInterface
+   */
   private UserInterface $testUser;
 
   /**
-   *
+   * {@inheritdoc}
    */
   protected function setUp(): void {
     parent::setUp();
@@ -176,7 +192,7 @@ final class AutoLoginUrlCreateKernelTest extends KernelTestBase {
 
     $this->urlCreateService->create(
       (int) $this->testUser->id(),
-    // Empty destination.
+      // Empty destination.
       '',
       FALSE
     );

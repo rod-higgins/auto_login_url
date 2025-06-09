@@ -46,7 +46,7 @@ final class AutoLoginUrlTextConverterTest extends UnitTestCase {
    * @covers ::__construct
    */
   public function testConstruct(): void {
-        $this->markTestSkipped('Skipping test due to final class mocking issues.');
+    $this->markTestSkipped('Skipping test due to final class mocking issues.');
     $converter = new AutoLoginUrlTextConverter(456, $this->urlCreator);
     $this->assertInstanceOf(AutoLoginUrlTextConverter::class, $converter);
   }

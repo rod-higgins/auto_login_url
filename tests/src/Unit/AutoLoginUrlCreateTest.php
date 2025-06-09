@@ -29,17 +29,64 @@ use Symfony\Component\HttpFoundation\RequestStack;
  */
 final class AutoLoginUrlCreateTest extends UnitTestCase {
 
+  /**
+   * The mocked database connection.
+   *
+   * @var \Drupal\Core\Database\Connection
+   */
   private Connection $connection;
+
+  /**
+   * The mocked config factory.
+   *
+   * @var \Drupal\Core\Config\ConfigFactoryInterface
+   */
   private ConfigFactoryInterface $configFactory;
+
+  /**
+   * The mocked general service.
+   *
+   * @var \Drupal\auto_login_url\AutoLoginUrlGeneral
+   */
   private AutoLoginUrlGeneral $autoLoginUrlGeneral;
+
+  /**
+   * The mocked logger factory.
+   *
+   * @var \Drupal\Core\Logger\LoggerChannelFactoryInterface
+   */
   private LoggerChannelFactoryInterface $loggerFactory;
+
+  /**
+   * The mocked logger channel.
+   *
+   * @var \Drupal\Core\Logger\LoggerChannelInterface
+   */
   private LoggerChannelInterface $logger;
+
+  /**
+   * The mocked rate limiter.
+   *
+   * @var \Drupal\auto_login_url\AutoLoginUrlRateLimit
+   */
   private AutoLoginUrlRateLimit $rateLimiter;
+
+  /**
+   * The mocked request stack.
+   *
+   * @var \Symfony\Component\HttpFoundation\RequestStack
+   */
   private RequestStack $requestStack;
+
+  /**
+   * The service under test.
+   *
+   * @var \Drupal\auto_login_url\AutoLoginUrlCreate
+   */
   private AutoLoginUrlCreate $urlCreateService;
 
   /**
-   *
+   * {@inheritdoc}
    */
   protected function setUp(): void {
     parent::setUp();
@@ -70,8 +117,7 @@ final class AutoLoginUrlCreateTest extends UnitTestCase {
    * @covers ::create
    */
   public function testCreateSuccessfulUrl(): void {
-        $this->markTestSkipped('Skipping test due to final class mocking issues.');
-        $this->markTestSkipped('Skipping test due to final class mocking issues.');
+    $this->markTestSkipped('Skipping test due to final class mocking issues.');
     // Mock rate limiting check.
     $this->rateLimiter->method('checkCreationLimit')
       ->with(123)

@@ -9,25 +9,46 @@ use Drupal\user\Entity\Role;
 use Drupal\user\Entity\User;
 
 /**
- * WORKING Functional tests for Auto Login URL module.
+ * Functional tests for Auto Login URL module login functionality.
  *
  * @group auto_login_url
  */
-final class AutoLoginUrlTest extends BrowserTestBase {
+final class AutoLoginUrlLoginTest extends BrowserTestBase {
 
+  /**
+   * The modules to load to run the test.
+   *
+   * @var array
+   */
   protected static $modules = [
     'auto_login_url',
     'user',
     'system',
   ];
 
+  /**
+   * The default theme for testing.
+   *
+   * @var string
+   */
   protected $defaultTheme = 'stark';
 
+  /**
+   * Test user with auto login permissions.
+   *
+   * @var \Drupal\user\Entity\User|null
+   */
   private ?User $testUser = NULL;
+
+  /**
+   * Test user without auto login permissions.
+   *
+   * @var \Drupal\user\Entity\User|null
+   */
   private ?User $restrictedUser = NULL;
 
   /**
-   *
+   * {@inheritdoc}
    */
   protected function setUp(): void {
     parent::setUp();
